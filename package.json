@@ -1,0 +1,17 @@
+{
+    "name": "hms-project",
+    "version": "1.0.0",
+    "description": "Hostel Management System",
+    "scripts": {
+        "start": "node backend/server.js",
+        "server": "cd backend && npm start",
+        "client": "cd frontend && npm run dev",
+        "build": "npm install --prefix backend && npm install --prefix frontend && npm run build --prefix frontend"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "express": "^4.18.2"
+    }
+}
