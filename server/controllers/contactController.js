@@ -46,7 +46,7 @@ const sendContactEmail = async (req, res) => {
         res.status(200).json({ message: 'Email sent successfully' });
     } catch (error) {
         console.error('Email sending failed:', error);
-        res.status(500).json({ message: 'Error sending email' });
+        res.status(500).json({ success: false, message: error.message || 'Error sending email' });
     }
 };
 

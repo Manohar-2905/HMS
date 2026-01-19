@@ -288,7 +288,7 @@ const forgotPassword = async (req, res) => {
         res.status(200).json({ success: true, message: 'Email sent' });
     } catch (error) {
         console.error('Forgot password error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ success: false, message: error.message || 'Internal server error' });
     }
 };
 
@@ -385,7 +385,7 @@ const initiateChangePassword = async (req, res) => {
         }
     } catch (error) {
         console.error('Change password initiate error:', error);
-        res.status(500).json({ message: 'Internal server error' });
+        res.status(500).json({ success: false, message: error.message || 'Internal server error' });
     }
 };
 

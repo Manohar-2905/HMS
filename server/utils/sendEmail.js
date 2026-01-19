@@ -45,7 +45,8 @@ const sendEmail = async (options) => {
                 sendpulse.smtpSendMail((data) => {
                     if (data && data.is_error) {
                         console.error('SendPulse SMTP Error:', data);
-                        return reject(new Error(data.message || 'Error sending email via SendPulse'));
+                        const errorMessage = data.message || (data.data && data.data.message) || 'Error sending email via SendPulse';
+                        return reject(new Error(errorMessage));
                     }
                     console.log('Email sent successfully via SendPulse:', data);
                     resolve(data);
