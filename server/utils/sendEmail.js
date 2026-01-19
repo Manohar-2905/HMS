@@ -1,70 +1,66 @@
-const sendpulse = require('sendpulse-api');
+const nodemailer = require('nodemailer');
 
+/**
+ * Send email using Nodemailer with generic SMTP configuration.
+ * Supports a mock/development mode for console logging.
+ */
 const sendEmail = async (options) => {
-    const API_ID = process.env.SENDPULSE_API_ID;
-    const API_SECRET = process.env.SENDPULSE_API_SECRET;
-    const TOKEN_STORAGE = "/tmp/";
+    // Configuration from environment variables
+    const config = {
+        host: process.env.SMTP_HOST,
+        port: process.env.SMTP_PORT,
+        secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+        tls: {
+            // Do not fail on invalid certs (common for custom SMTP)
+            rejectUnauthorized: false
+        }
+    };
 
-    // Only intercept in console if explicitly set to 'mock' or if in development AND credentials are missing
-    // We want to throw an error if the user expects it to send but it can't.
+    // Only intercept in console if explicitly set to 'mock' or if credentials are missing
     const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
+    const hasCredentials = process.env.EMAIL_USER && process.env.EMAIL_PASS;
 
-    if (isMockMode) {
+    if (isMockMode || !hasCredentials) {
         console.log('--------------------------------------------------');
-        console.log('📧 [MOCK MODE] Email Intercepted:');
+        console.log(`📧 [${isMockMode ? 'MOCK' : 'DEVELOPMENT'}] Email Intercepted:`);
         console.log(`To:      ${options.email}`);
         console.log(`Subject: ${options.subject}`);
         console.log(`Message: ${options.message}`);
         console.log('--------------------------------------------------');
+
+        if (!hasCredentials && !isMockMode) {
+            console.warn('⚠️  Warning: SMTP credentials missing. Emails are being logged to console instead of sent.');
+        }
+
         return { messageId: 'mock-id' };
     }
 
-    if (!API_ID || !API_SECRET) {
-        const errorMsg = 'SendPulse API credentials (ID/SECRET) are missing. Email cannot be sent.';
-        console.error(`❌ ${errorMsg}`);
-        throw new Error(errorMsg);
-    }
-
     try {
-        return new Promise((resolve, reject) => {
-            sendpulse.init(API_ID, API_SECRET, TOKEN_STORAGE, (token) => {
-                if (token && token.is_error) {
-                    console.error('SendPulse Init Error:', token);
-                    return reject(new Error('SendPulse initialization failed'));
-                }
+        // 1. Create a transporter
+        const transporter = nodemailer.createTransport(config);
 
-                const emailBody = {
-                    html: options.html,
-                    text: options.message,
-                    subject: options.subject,
-                    from: {
-                        name: (process.env.FROM_NAME || 'Yashoda Bhawan').trim(),
-                        email: (process.env.FROM_EMAIL || '').trim(),
-                    },
-                    to: [
-                        {
-                            email: (options.email || '').trim(),
-                        },
-                    ],
-                };
+        // 2. Define email options
+        const mailOptions = {
+            from: `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
+            to: options.email,
+            subject: options.subject,
+            text: options.message,
+            html: options.html,
+        };
 
-                console.log(`📤 Sending email via SendPulse FROM: ${emailBody.from.email} TO: ${emailBody.to[0].email}`);
-
-                sendpulse.smtpSendMail((data) => {
-                    // SendPulse might return data.is_error = true OR an error_code within the data object
-                    if (data && (data.is_error || data.error_code)) {
-                        console.error('SendPulse SMTP Error:', data);
-                        const errorMessage = data.message || (data.data && data.data.message) || `SendPulse Error (Code: ${data.error_code})`;
-                        return reject(new Error(errorMessage));
-                    }
-                    console.log('Email sent successfully via SendPulse:', data);
-                    resolve(data);
-                }, emailBody);
-            });
-        });
-    } catch (err) {
-        console.error('Email sending failed:', err);
-        throw err;
+        // 3. Send the email
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
+        return info;
+    } catch (error) {
+        console.error('Nodemailer Error:', error);
+        // Throw a descriptive error for the frontend
+        const errorMessage = error.message || 'Failed to send email via SMTP service';
+        throw new Error(errorMessage);
     }
 };
 
