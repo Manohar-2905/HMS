@@ -58,27 +58,50 @@ const sendEmail = async (options) => {
     }
 
     try {
+        console.log('--- SMTP Sending Process Started ---');
+
         // 1. Create a transporter
         const transporter = nodemailer.createTransport(config);
 
-        // 2. Define email options
-        const mailOptions = {
-            from: `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
-            to: options.email,
-            subject: options.subject,
-            text: options.message,
-            html: options.html,
-        };
+        // 2. Wrap everything in a timeout to prevent 502 hangs
+        return await new Promise((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+                reject(new Error('SMTP Connection/Sending timed out (15s limit)'));
+            }, 15000);
 
-        // 3. Send the email
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
-        return info;
+            console.log('Step 1: Verifying SMTP Connection...');
+            transporter.verify(async (error, success) => {
+                if (error) {
+                    clearTimeout(timeoutId);
+                    console.error('Step 1 Failed: Connection verification error:', error);
+                    return reject(new Error(`SMTP Verification Failed: ${error.message}`));
+                }
+
+                console.log('Step 2: Connection verified. Defining mail options...');
+                const mailOptions = {
+                    from: `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
+                    to: options.email,
+                    subject: options.subject,
+                    text: options.message,
+                    html: options.html,
+                };
+
+                console.log('Step 3: Attempting to send mail...');
+                transporter.sendMail(mailOptions, (sendError, info) => {
+                    clearTimeout(timeoutId);
+                    if (sendError) {
+                        console.error('Step 3 Failed: Error sending mail:', sendError);
+                        return reject(new Error(`SMTP Send Failed: ${sendError.message}`));
+                    }
+                    console.log('Step 4: Email sent successfully!', info.messageId);
+                    resolve(info);
+                });
+            });
+        });
     } catch (error) {
-        console.error('Nodemailer Error:', error);
-        // Throw a descriptive error for the frontend
-        const errorMessage = error.message || 'Failed to send email via SMTP service';
-        throw new Error(errorMessage);
+        console.error('--- SMTP Process Failed ---');
+        console.error('Detailed Error:', error);
+        throw error;
     }
 };
 
