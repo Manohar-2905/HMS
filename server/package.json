@@ -22,9 +22,8 @@
     "jspdf": "^3.0.4",
     "mongoose": "^9.0.2",
     "multer": "^2.0.2",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^6.10.1",
     "nodemon": "^3.1.11",
-    "pdfkit": "^0.17.2",
-    "resend": "^6.8.0"
+    "pdfkit": "^0.17.2"
   }
 }

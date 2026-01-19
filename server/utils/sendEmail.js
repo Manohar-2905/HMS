@@ -1,10 +1,8 @@
-const { Resend } = require('resend');
-
-
+const nodemailer = require('nodemailer');
 
 const sendEmail = async (options) => {
-    // If we're in development or don't have a valid Resend API key, log to console
-    const isDev = process.env.NODE_ENV === 'development' || !process.env.RESEND_API_KEY || process.env.RESEND_API_KEY.includes('your_api_key');
+    // If we're in development, log to console instead of sending
+    const isDev = process.env.NODE_ENV === 'development';
 
     if (isDev) {
         console.log('--------------------------------------------------');
@@ -14,33 +12,36 @@ const sendEmail = async (options) => {
         console.log(`Message: ${options.message}`);
         if (options.html) console.log('HTML content provided.');
         console.log('--------------------------------------------------');
-        // Return a mock response that looks like Resend's
-        return { id: 'dev-mode-mock-id' };
+        return { messageId: 'dev-mode-mock-id' };
     }
 
     try {
-        const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
-        const fromName = process.env.FROM_NAME || 'Yashoda Bhawan';
+        // Create a transporter using generic SMTP settings
+        // These can be used with Gmail, Goforhost, or any other SMTP provider
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || 'smtp.gmail.com',
+            port: process.env.SMTP_PORT || 587,
+            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS,
+            },
+            tls: {
+                rejectUnauthorized: false // Often needed for custom SMTP providers
+            }
+        });
 
-        console.log(`Attempting to send email via Resend from: ${fromName} <${fromEmail}> to ${options.email}`);
-
-        // Initialize Resend lazily to prevent crash if key is missing
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        const { data, error } = await resend.emails.send({
-            from: `${fromName} <${fromEmail}>`,
+        const mailOptions = {
+            from: `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
             to: options.email,
             subject: options.subject,
             text: options.message,
             html: options.html,
-        });
+        };
 
-        if (error) {
-            console.error('Resend Error:', error);
-            throw new Error(error.message);
-        }
-
-        console.log('Email sent successfully:', data.id);
-        return data;
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Email sent successfully:', info.messageId);
+        return info;
     } catch (err) {
         console.error('Email sending failed:', err);
         throw err;
