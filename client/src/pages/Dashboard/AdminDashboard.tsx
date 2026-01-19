@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Download, Users, Bed, FileText, ArrowLeft, Maximize, User, Edit3, Printer, Loader2, CheckCircle, UserPlus, Lock, Bell, Check, X } from 'lucide-react';
+import { Trash2, Download, Users, Bed, FileText, ArrowLeft, Maximize, User, Edit3, Printer, Loader2, CheckCircle, UserPlus, Lock, Bell, Check, X, Calendar } from 'lucide-react';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
 import { Navbar } from '@/components/layout/Navbar';
@@ -17,7 +17,7 @@ import toast from 'react-hot-toast';
 const AdminDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes' | 'attendance'>('users');
     const [users, setUsers] = useState<any[]>([]);
     const [rooms, setRooms] = useState<any[]>([]);
     const [notes, setNotes] = useState<any[]>([]);
@@ -39,6 +39,8 @@ const AdminDashboard = () => {
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editFormData, setEditFormData] = useState<any>({});
     const [paymentUpdateAmount, setPaymentUpdateAmount] = useState('');
+    const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+    const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
 
     // Forms
     const [newUser, setNewUser] = useState({
@@ -81,6 +83,11 @@ const AdminDashboard = () => {
             } else if (activeTab === 'notes') {
                 const { data } = await api.get('/api/notes', config);
                 setNotes(data);
+            } else if (activeTab === 'attendance') {
+                const { data: attData } = await api.get(`/api/attendance/date/${attendanceDate}`, config);
+                setAttendanceRecords(attData);
+                const { data: userData } = await api.get('/api/auth/users', config);
+                setUsers(userData);
             }
 
             // Always fetch pending users for the notification badge
@@ -151,6 +158,32 @@ const AdminDashboard = () => {
             }
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleMarkAttendance = async (userId: string, status: string) => {
+        try {
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+
+            const promise = api.post('/api/attendance/mark', {
+                attendanceData: [{
+                    userId,
+                    date: attendanceDate,
+                    status
+                }]
+            }, config);
+
+            toast.promise(promise, {
+                loading: 'Updating attendance...',
+                success: 'Attendance updated!',
+                error: (err) => err.response?.data?.message || 'Error updating attendance'
+            });
+
+            await promise;
+            fetchData();
+        } catch (error: any) {
+            console.error(error);
         }
     };
 
@@ -610,6 +643,13 @@ const AdminDashboard = () => {
                             >
                                 <FileText className="w-4 h-4 mr-2" /> Notes
                             </Button>
+                            <Button
+                                variant={activeTab === 'attendance' ? 'default' : 'outline'}
+                                onClick={() => setActiveTab('attendance')}
+                                className={`rounded-full shadow-lg ${activeTab !== 'attendance' && 'bg-transparent text-white border-white/20 hover:bg-white/10 hover:text-white'}`}
+                            >
+                                <Calendar className="w-4 h-4 mr-2" /> Attendance
+                            </Button>
                         </div>
                     </div>
                 </div>
@@ -988,6 +1028,100 @@ const AdminDashboard = () => {
                                             )}
                                         </div>
                                     ))}
+                                </div>
+                            </div>
+                        )}
+                        {activeTab === 'attendance' && (
+                            <div className="animate-fade-in">
+                                <Button variant="ghost" className="mb-6 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={() => setActiveTab('users')}>
+                                    <ArrowLeft className="w-4 h-4 mr-2" /> Back to Users
+                                </Button>
+                                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+                                    <h2 className="text-2xl font-bold font-display text-primary">Student Attendance</h2>
+                                    <div className="flex items-center gap-3 bg-muted/50 p-2 rounded-full border border-border/50">
+                                        <Calendar className="w-4 h-4 ml-2 text-muted-foreground" />
+                                        <Input
+                                            type="date"
+                                            value={attendanceDate}
+                                            onChange={(e) => setAttendanceDate(e.target.value)}
+                                            className="bg-transparent border-0 focus-visible:ring-0 w-auto h-8 p-0"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-left border-collapse">
+                                        <thead>
+                                            <tr className="border-b border-border/50 bg-muted/30">
+                                                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Student</th>
+                                                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Contact</th>
+                                                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground text-center">Status</th>
+                                                <th className="px-4 py-3 font-semibold uppercase tracking-wider text-[10px] text-muted-foreground">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-border/30">
+                                            {users.filter(u => u.role === 'user' && u.isVerified).map((student) => {
+                                                const record = attendanceRecords.find(r => r.user?._id === student._id);
+                                                return (
+                                                    <tr key={student._id} className="hover:bg-muted/10 transition-colors">
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                                                                    {student.photo ? (
+                                                                        <img src={student.photo} alt={student.name} className="w-full h-full object-cover" />
+                                                                    ) : (
+                                                                        <User className="w-4 h-4 text-primary" />
+                                                                    )}
+                                                                </div>
+                                                                <span className="font-medium text-foreground">{student.name}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-4 text-muted-foreground">{student.phone}</td>
+                                                        <td className="px-4 py-4 text-center">
+                                                            {record ? (
+                                                                <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${record.status === 'Present' ? 'bg-green-100 text-green-600 border border-green-200' :
+                                                                    record.status === 'Absent' ? 'bg-red-100 text-red-600 border border-red-200' :
+                                                                        'bg-amber-100 text-amber-600 border border-amber-200'
+                                                                    }`}>
+                                                                    {record.status}
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-muted-foreground text-[10px] font-medium italic opacity-50">Not Marked</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-4 py-4">
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant={record?.status === 'Present' ? 'default' : 'outline'}
+                                                                    className="rounded-full h-8 w-8 p-0"
+                                                                    onClick={() => handleMarkAttendance(student._id, 'Present')}
+                                                                >
+                                                                    <Check className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant={record?.status === 'Absent' ? 'destructive' : 'outline'}
+                                                                    className="rounded-full h-8 w-8 p-0"
+                                                                    onClick={() => handleMarkAttendance(student._id, 'Absent')}
+                                                                >
+                                                                    <X className="w-4 h-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant={record?.status === 'Leave' ? 'secondary' : 'outline'}
+                                                                    className="rounded-full h-8 w-8 p-0"
+                                                                    onClick={() => handleMarkAttendance(student._id, 'Leave')}
+                                                                >
+                                                                    <Bell className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         )}

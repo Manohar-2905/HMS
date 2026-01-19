@@ -21,12 +21,14 @@ const roomRoutes = require('./routes/roomRoutes');
 const noteRoutes = require('./routes/noteRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
+const attendanceRoutes = require('./routes/attendanceRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/notes', noteRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/invoice', invoiceRoutes);
+app.use('/api/attendance', attendanceRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Serve static assets in production

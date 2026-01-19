@@ -9,7 +9,7 @@ import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SEO } from '@/components/layout/SEO';
-import { FileText, Upload, Lock, User, Wallet, CheckCircle, Pencil, Loader2 } from 'lucide-react';
+import { FileText, Upload, Lock, User, Wallet, CheckCircle, Pencil, Loader2, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // Interfaces
@@ -35,10 +35,21 @@ const UserDashboard = () => {
     const [uploading, setUploading] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const [photoUploading, setPhotoUploading] = useState(false);
+    const [attendance, setAttendance] = useState<any[]>([]);
 
     useEffect(() => {
         fetchNotes();
+        fetchAttendance();
     }, []);
+
+    const fetchAttendance = async () => {
+        try {
+            const { data } = await api.get('/api/attendance/my');
+            setAttendance(data);
+        } catch (error) {
+            console.error('Error fetching attendance', error);
+        }
+    };
 
     const fetchNotes = async () => {
         try {
@@ -368,6 +379,71 @@ const UserDashboard = () => {
                                     <p className="text-muted-foreground italic font-medium">No shared resources found for your department.</p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Attendance Section */}
+                    <div className="mt-12 bg-white border border-border shadow-md rounded-3xl p-8 transition-all hover:shadow-lg">
+                        <div className="flex items-center gap-4 mb-8">
+                            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                                <Calendar className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-bold font-display">My Attendance</h2>
+                                <p className="text-muted-foreground text-sm">Monthly overview of your presence</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
+                                <p className="text-[10px] uppercase font-bold text-green-600 mb-1">Present</p>
+                                <p className="text-3xl font-bold text-green-700">{attendance.filter(a => a.status === 'Present').length}</p>
+                            </div>
+                            <div className="p-4 bg-red-50 rounded-2xl border border-red-100">
+                                <p className="text-[10px] uppercase font-bold text-red-600 mb-1">Absent</p>
+                                <p className="text-3xl font-bold text-red-700">{attendance.filter(a => a.status === 'Absent').length}</p>
+                            </div>
+                            <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                                <p className="text-[10px] uppercase font-bold text-amber-600 mb-1">Leave</p>
+                                <p className="text-3xl font-bold text-amber-700">{attendance.filter(a => a.status === 'Leave').length}</p>
+                            </div>
+                            <div className="p-4 bg-muted/30 rounded-2xl border border-border/50">
+                                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Total Records</p>
+                                <p className="text-3xl font-bold">{attendance.length}</p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto rounded-xl border border-border/50">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-muted/30">
+                                    <tr className="border-b border-border/50">
+                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground">Date</th>
+                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground">Status</th>
+                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground text-right">Remarks</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-border/30">
+                                    {attendance.slice(0, 10).map((record) => (
+                                        <tr key={record._id} className="hover:bg-muted/10 transition-colors">
+                                            <td className="px-6 py-4 font-medium">{new Date(record.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                                            <td className="px-6 py-4">
+                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase inline-block text-center min-w-[80px] ${record.status === 'Present' ? 'bg-green-100 text-green-600' :
+                                                    record.status === 'Absent' ? 'bg-red-100 text-red-600' :
+                                                        'bg-amber-100 text-amber-600'
+                                                    }`}>
+                                                    {record.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-muted-foreground text-right">{record.remarks || '-'}</td>
+                                        </tr>
+                                    ))}
+                                    {attendance.length === 0 && (
+                                        <tr>
+                                            <td colSpan={3} className="px-6 py-8 text-center text-muted-foreground italic">No attendance records found yet.</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
