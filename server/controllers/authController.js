@@ -243,25 +243,25 @@ const crypto = require('crypto');
 // @route   POST /api/auth/forgot-password
 // @access  Public
 const forgotPassword = async (req, res) => {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
-
-    if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Generate 4 digit OTP
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
-
-    // Set OTP and expiration (10 minutes)
-    user.resetPasswordOtp = otp;
-    user.resetPasswordOtpExpire = Date.now() + 10 * 60 * 1000;
-
-    await user.save();
-
-    const message = `Your password reset Code is: ${otp}\n\nThis code will expire in 10 minutes.`;
-
     try {
+        const { email } = req.body;
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Generate 4 digit OTP
+        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+        // Set OTP and expiration (10 minutes)
+        user.resetPasswordOtp = otp;
+        user.resetPasswordOtpExpire = Date.now() + 10 * 60 * 1000;
+
+        await user.save();
+
+        const message = `Your password reset Code is: ${otp}\n\nThis code will expire in 10 minutes.`;
+
         const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f5;">
             <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -287,11 +287,8 @@ const forgotPassword = async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Email sent' });
     } catch (error) {
-        user.resetPasswordOtp = undefined;
-        user.resetPasswordOtpExpire = undefined;
-        await user.save();
-        console.error(error);
-        return res.status(500).json({ message: 'Email could not be sent' });
+        console.error('Forgot password error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
 
@@ -343,22 +340,22 @@ const resetPassword = async (req, res) => {
 // @route   POST /api/auth/change-password-initiate
 // @access  Private
 const initiateChangePassword = async (req, res) => {
-    const { oldPassword } = req.body;
-    const user = await User.findById(req.user._id);
+    try {
+        const { oldPassword } = req.body;
+        const user = await User.findById(req.user._id);
 
-    if (user && (await user.matchPassword(oldPassword))) {
-        // Generate 4 digit OTP
-        const otp = Math.floor(1000 + Math.random() * 9000).toString();
+        if (user && (await user.matchPassword(oldPassword))) {
+            // Generate 4 digit OTP
+            const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-        // Set OTP and expiration (10 minutes)
-        user.resetPasswordOtp = otp;
-        user.resetPasswordOtpExpire = Date.now() + 10 * 60 * 1000;
+            // Set OTP and expiration (10 minutes)
+            user.resetPasswordOtp = otp;
+            user.resetPasswordOtpExpire = Date.now() + 10 * 60 * 1000;
 
-        await user.save();
+            await user.save();
 
-        const message = `Your password change verification Code is: ${otp}\n\nThis code will expire in 10 minutes.`;
+            const message = `Your password change verification Code is: ${otp}\n\nThis code will expire in 10 minutes.`;
 
-        try {
             const html = `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f5;">
                 <div style="background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -383,15 +380,12 @@ const initiateChangePassword = async (req, res) => {
             });
 
             res.status(200).json({ success: true, message: 'OTP sent to email' });
-        } catch (error) {
-            user.resetPasswordOtp = undefined;
-            user.resetPasswordOtpExpire = undefined;
-            await user.save();
-            console.error(error);
-            return res.status(500).json({ message: 'Email could not be sent' });
+        } else {
+            res.status(401).json({ message: 'Invalid old password' });
         }
-    } else {
-        res.status(401).json({ message: 'Invalid old password' });
+    } catch (error) {
+        console.error('Change password initiate error:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 };
 
