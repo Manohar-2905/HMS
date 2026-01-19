@@ -10,9 +10,11 @@ const sendEmail = async (options) => {
     const smtpPort = parseInt(process.env.SMTP_PORT || '465'); // Default to 465 for SSL
     const isSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465;
 
+    // Use 'service' shorthand if host is gmail, as it often works better in cloud environments
     const config = {
-        host: smtpHost,
-        port: smtpPort,
+        service: smtpHost.includes('gmail.com') ? 'gmail' : undefined,
+        host: smtpHost.includes('gmail.com') ? undefined : smtpHost,
+        port: smtpHost.includes('gmail.com') ? undefined : smtpPort,
         secure: isSecure,
         auth: {
             user: process.env.EMAIL_USER,
@@ -24,19 +26,16 @@ const sendEmail = async (options) => {
             // Explicitly set servername for SNI
             servername: smtpHost
         },
-        connectionTimeout: 20000, // 20 seconds
-        greetingTimeout: 20000,   // 20 seconds
-        socketTimeout: 20000,     // 20 seconds
+        connectionTimeout: 30000, // 30 seconds
+        greetingTimeout: 30000,   // 30 seconds
+        socketTimeout: 30000,     // 30 seconds
     };
 
-    console.log(`Debug: Attempting email via Host="${smtpHost}" Port=${smtpPort} (Secure=${isSecure})`);
+    console.log(`Debug: Attempting email via ${config.service ? 'Service="gmail"' : 'Host="' + smtpHost + '"'}`);
 
     // Only intercept in console if explicitly set to 'mock'
     const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
     const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
-
-    console.log(`Debug: EMAIL_SERVICE_MODE="${process.env.EMAIL_SERVICE_MODE}"`);
-    console.log(`Debug: hasCredentials=${hasCredentials}`);
 
     if (isMockMode) {
         console.log('--------------------------------------------------');
@@ -61,7 +60,7 @@ const sendEmail = async (options) => {
     }
 
     try {
-        console.log('--- SMTP Sending Process Started ---');
+        console.log('--- SMTP Sending Process Started (30s limit) ---');
 
         // 1. Create a transporter
         const transporter = nodemailer.createTransport(config);
@@ -69,8 +68,8 @@ const sendEmail = async (options) => {
         // 2. Wrap everything in a timeout to prevent 502 hangs
         return await new Promise((resolve, reject) => {
             const timeoutId = setTimeout(() => {
-                reject(new Error('SMTP Connection/Sending timed out (15s limit)'));
-            }, 15000);
+                reject(new Error('SMTP Connection/Sending timed out (30s limit)'));
+            }, 30000);
 
             console.log('Step 1: Verifying SMTP Connection...');
             transporter.verify(async (error, success) => {
