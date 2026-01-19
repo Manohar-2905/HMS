@@ -7,23 +7,26 @@ const nodemailer = require('nodemailer');
 const sendEmail = async (options) => {
     // Configuration from environment variables
     const smtpHost = (process.env.SMTP_HOST || '').trim();
-    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+    const smtpPort = parseInt(process.env.SMTP_PORT || '465'); // Default to 465 for SSL
+    const isSecure = process.env.SMTP_SECURE === 'true' || smtpPort === 465;
 
     const config = {
         host: smtpHost,
         port: smtpPort,
-        secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+        secure: isSecure,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
         tls: {
-            // Do not fail on invalid certs (common for custom SMTP)
+            // Do not fail on invalid certs
             rejectUnauthorized: false
-        }
+        },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000,   // 10 seconds
     };
 
-    console.log(`Debug: Attempting email via Host="${smtpHost}" Port=${smtpPort}`);
+    console.log(`Debug: Attempting email via Host="${smtpHost}" Port=${smtpPort} (Secure=${isSecure})`);
 
     // Only intercept in console if explicitly set to 'mock'
     const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
