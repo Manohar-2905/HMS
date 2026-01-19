@@ -6,6 +6,11 @@ const path = require('path');
 
 dotenv.config();
 
+console.log('--- Email Config Check ---');
+console.log('EMAIL_USER:', process.env.EMAIL_USER);
+console.log('EMAIL_SERVICE_MODE:', process.env.EMAIL_SERVICE_MODE);
+console.log('---------------------------');
+
 const app = express();
 
 // Middleware

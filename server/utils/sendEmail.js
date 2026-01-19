@@ -20,23 +20,27 @@ const sendEmail = async (options) => {
         }
     };
 
-    // Only intercept in console if explicitly set to 'mock' or if credentials are missing
+    // Only intercept in console if explicitly set to 'mock'
     const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
-    const hasCredentials = process.env.EMAIL_USER && process.env.EMAIL_PASS;
+    const hasCredentials = !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
-    if (isMockMode || !hasCredentials) {
+    console.log(`Debug: EMAIL_SERVICE_MODE="${process.env.EMAIL_SERVICE_MODE}"`);
+    console.log(`Debug: hasCredentials=${hasCredentials}`);
+
+    if (isMockMode) {
         console.log('--------------------------------------------------');
-        console.log(`📧 [${isMockMode ? 'MOCK' : 'DEVELOPMENT'}] Email Intercepted:`);
+        console.log('📧 [MOCK MODE] Email Intercepted:');
         console.log(`To:      ${options.email}`);
         console.log(`Subject: ${options.subject}`);
         console.log(`Message: ${options.message}`);
         console.log('--------------------------------------------------');
-
-        if (!hasCredentials && !isMockMode) {
-            console.warn('⚠️  Warning: SMTP credentials missing. Emails are being logged to console instead of sent.');
-        }
-
         return { messageId: 'mock-id' };
+    }
+
+    if (!hasCredentials) {
+        const errorMsg = 'SMTP credentials missing. Please configure EMAIL_USER and EMAIL_PASS in your .env file.';
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
     }
 
     try {
