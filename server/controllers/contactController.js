@@ -7,7 +7,9 @@ const sendContactEmail = async (req, res) => {
     const { name, email, phone, message } = req.body;
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail', // Or use env vars for host/port
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // Use SSL
         auth: {
             user: process.env.EMAIL_USER, // Your email
             pass: process.env.EMAIL_PASS, // Your app password

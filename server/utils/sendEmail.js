@@ -4,7 +4,9 @@ const sendEmail = async (options) => {
     // Create transporter (using services or SMTP)
     // For now, assuming standard SMTP or Gmail from ENV
     const transporter = nodemailer.createTransport({
-        service: 'gmail', // or user host
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, // use SSL
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
