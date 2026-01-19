@@ -20,10 +20,13 @@ const sendEmail = async (options) => {
         },
         tls: {
             // Do not fail on invalid certs
-            rejectUnauthorized: false
+            rejectUnauthorized: false,
+            // Explicitly set servername for SNI
+            servername: smtpHost
         },
-        connectionTimeout: 10000, // 10 seconds
-        greetingTimeout: 10000,   // 10 seconds
+        connectionTimeout: 20000, // 20 seconds
+        greetingTimeout: 20000,   // 20 seconds
+        socketTimeout: 20000,     // 20 seconds
     };
 
     console.log(`Debug: Attempting email via Host="${smtpHost}" Port=${smtpPort} (Secure=${isSecure})`);
