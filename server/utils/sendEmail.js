@@ -6,9 +6,12 @@ const nodemailer = require('nodemailer');
  */
 const sendEmail = async (options) => {
     // Configuration from environment variables
+    const smtpHost = (process.env.SMTP_HOST || '').trim();
+    const smtpPort = parseInt(process.env.SMTP_PORT || '587');
+
     const config = {
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
+        host: smtpHost,
+        port: smtpPort,
         secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
         auth: {
             user: process.env.EMAIL_USER,
@@ -19,6 +22,8 @@ const sendEmail = async (options) => {
             rejectUnauthorized: false
         }
     };
+
+    console.log(`Debug: Attempting email via Host="${smtpHost}" Port=${smtpPort}`);
 
     // Only intercept in console if explicitly set to 'mock'
     const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
@@ -35,6 +40,12 @@ const sendEmail = async (options) => {
         console.log(`Message: ${options.message}`);
         console.log('--------------------------------------------------');
         return { messageId: 'mock-id' };
+    }
+
+    if (!isMockMode && hasCredentials && !smtpHost) {
+        const errorMsg = 'SMTP_HOST is missing in environment variables. Cannot send real email.';
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
     }
 
     if (!hasCredentials) {

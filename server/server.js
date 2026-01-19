@@ -8,6 +8,7 @@ dotenv.config();
 
 console.log('--- Email Config Check ---');
 console.log('EMAIL_USER:', process.env.EMAIL_USER);
+console.log('SMTP_HOST:', process.env.SMTP_HOST);
 console.log('EMAIL_SERVICE_MODE:', process.env.EMAIL_SERVICE_MODE);
 console.log('---------------------------');
 
