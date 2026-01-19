@@ -3,20 +3,26 @@ const sendpulse = require('sendpulse-api');
 const sendEmail = async (options) => {
     const API_ID = process.env.SENDPULSE_API_ID;
     const API_SECRET = process.env.SENDPULSE_API_SECRET;
-    const TOKEN_STORAGE = "/tmp/"; // You can change this path if needed
+    const TOKEN_STORAGE = "/tmp/";
 
-    // If we're in development or don't have SendPulse credentials, log to console
-    const isDev = process.env.NODE_ENV === 'development' || !API_ID || !API_SECRET;
+    // Only intercept in console if explicitly set to 'mock' or if in development AND credentials are missing
+    // We want to throw an error if the user expects it to send but it can't.
+    const isMockMode = process.env.EMAIL_SERVICE_MODE === 'mock';
 
-    if (isDev) {
+    if (isMockMode) {
         console.log('--------------------------------------------------');
-        console.log('📧 [DEVELOPMENT MODE] Email Intercepted:');
+        console.log('📧 [MOCK MODE] Email Intercepted:');
         console.log(`To:      ${options.email}`);
         console.log(`Subject: ${options.subject}`);
         console.log(`Message: ${options.message}`);
-        if (options.html) console.log('HTML content provided.');
         console.log('--------------------------------------------------');
-        return { messageId: 'dev-mode-mock-id' };
+        return { messageId: 'mock-id' };
+    }
+
+    if (!API_ID || !API_SECRET) {
+        const errorMsg = 'SendPulse API credentials (ID/SECRET) are missing. Email cannot be sent.';
+        console.error(`❌ ${errorMsg}`);
+        throw new Error(errorMsg);
     }
 
     try {
