@@ -49,9 +49,10 @@ const sendEmail = async (options) => {
                 };
 
                 sendpulse.smtpSendMail((data) => {
-                    if (data && data.is_error) {
+                    // SendPulse might return data.is_error = true OR an error_code within the data object
+                    if (data && (data.is_error || data.error_code)) {
                         console.error('SendPulse SMTP Error:', data);
-                        const errorMessage = data.message || (data.data && data.data.message) || 'Error sending email via SendPulse';
+                        const errorMessage = data.message || (data.data && data.data.message) || `SendPulse Error (Code: ${data.error_code})`;
                         return reject(new Error(errorMessage));
                     }
                     console.log('Email sent successfully via SendPulse:', data);
