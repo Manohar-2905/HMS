@@ -20,6 +20,7 @@ interface User {
 interface AuthContextType {
     user: User | null;
     login: (email: string, password: string) => Promise<void>;
+    updateUser: (userData: User) => void;
     logout: () => void;
     isAdmin: boolean;
     loading: boolean;
@@ -50,6 +51,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    const updateUser = (userData: User) => {
+        setUser(userData);
+        localStorage.setItem('userInfo', JSON.stringify(userData));
+    };
+
     const logout = () => {
         localStorage.removeItem('userInfo');
         setUser(null);
@@ -58,7 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isAdmin = user?.role === 'admin';
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, login, updateUser, logout, isAdmin, loading }}>
             {children}
         </AuthContext.Provider>
     );

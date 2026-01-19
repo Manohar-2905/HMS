@@ -24,7 +24,7 @@ export function ChangePasswordForm({ onSuccess, onCancel }: ChangePasswordFormPr
     const [showOldPassword, setShowOldPassword] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const { logout } = useAuth();
+    const { logout, updateUser } = useAuth();
     const navigate = useNavigate();
 
     const handleInitiate = async (e: React.FormEvent) => {
@@ -64,7 +64,8 @@ export function ChangePasswordForm({ onSuccess, onCancel }: ChangePasswordFormPr
         setIsLoading(true);
 
         try {
-            await api.post('/api/auth/change-password-complete', { otp, newPassword });
+            const { data } = await api.post('/api/auth/change-password-complete', { otp, newPassword });
+            updateUser(data);
             toast.success('Password changed successfully!');
             onSuccess();
         } catch (err: any) {

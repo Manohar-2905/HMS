@@ -411,9 +411,18 @@ const completeChangePassword = async (req, res) => {
         user.resetPasswordOtp = undefined;
         user.resetPasswordOtpExpire = undefined;
 
-        await user.save();
+        const updatedUser = await user.save();
 
-        res.status(200).json({ success: true, message: 'Password changed successfully' });
+        res.status(200).json({
+            success: true,
+            message: 'Password changed successfully',
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            role: updatedUser.role,
+            photo: updatedUser.photo,
+            token: generateToken(updatedUser._id),
+        });
     } else {
         res.status(400).json({ message: 'Invalid or expired OTP' });
     }
