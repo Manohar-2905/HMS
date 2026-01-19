@@ -1,7 +1,10 @@
 node_modules/
 .env
-dist/
-build/
+.env.local
 .DS_Store
-coverage/
-.vscode/
+dist/
+client/dist/
+client/node_modules/
+server/node_modules/
+uploads/
+*.log
