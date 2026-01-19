@@ -115,7 +115,10 @@ export function Navbar() {
                                 <Button
                                     variant={"outline"}
                                     onClick={() => { setIsLoginModalOpen(true); setAuthView('register'); }}
-                                    className={"rounded-full border-primary/30 text-white hover:bg-primary hover:border-primary transition-all duration-300 bg-white/5 backdrop-blur-sm"}
+                                    className={cn(
+                                        "rounded-full border-primary/30 transition-all duration-300 bg-white/5 backdrop-blur-sm hover:bg-primary hover:border-primary hover:text-white",
+                                        isScrolledOrOpen ? "text-primary border-primary/50" : "text-white"
+                                    )}
                                 >
                                     Register
                                 </Button>
