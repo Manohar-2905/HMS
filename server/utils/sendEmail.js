@@ -1,6 +1,6 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 const sendEmail = async (options) => {
     // If we're in development or don't have a valid Resend API key, log to console
@@ -24,6 +24,8 @@ const sendEmail = async (options) => {
 
         console.log(`Attempting to send email via Resend from: ${fromName} <${fromEmail}> to ${options.email}`);
 
+        // Initialize Resend lazily to prevent crash if key is missing
+        const resend = new Resend(process.env.RESEND_API_KEY);
         const { data, error } = await resend.emails.send({
             from: `${fromName} <${fromEmail}>`,
             to: options.email,
