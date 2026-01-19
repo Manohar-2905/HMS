@@ -38,15 +38,17 @@ const sendEmail = async (options) => {
                     text: options.message,
                     subject: options.subject,
                     from: {
-                        name: process.env.FROM_NAME || 'Yashoda Bhawan',
-                        email: process.env.FROM_EMAIL,
+                        name: (process.env.FROM_NAME || 'Yashoda Bhawan').trim(),
+                        email: (process.env.FROM_EMAIL || '').trim(),
                     },
                     to: [
                         {
-                            email: options.email,
+                            email: (options.email || '').trim(),
                         },
                     ],
                 };
+
+                console.log(`📤 Sending email via SendPulse FROM: ${emailBody.from.email} TO: ${emailBody.to[0].email}`);
 
                 sendpulse.smtpSendMail((data) => {
                     // SendPulse might return data.is_error = true OR an error_code within the data object
