@@ -1,8 +1,12 @@
-const nodemailer = require('nodemailer');
+const sendpulse = require('sendpulse-api');
 
 const sendEmail = async (options) => {
-    // If we're in development, log to console instead of sending
-    const isDev = process.env.NODE_ENV === 'development';
+    const API_ID = process.env.SENDPULSE_API_ID;
+    const API_SECRET = process.env.SENDPULSE_API_SECRET;
+    const TOKEN_STORAGE = "/tmp/"; // You can change this path if needed
+
+    // If we're in development or don't have SendPulse credentials, log to console
+    const isDev = process.env.NODE_ENV === 'development' || !API_ID || !API_SECRET;
 
     if (isDev) {
         console.log('--------------------------------------------------');
@@ -16,32 +20,38 @@ const sendEmail = async (options) => {
     }
 
     try {
-        // Create a transporter using generic SMTP settings
-        // These can be used with Gmail, Goforhost, or any other SMTP provider
-        const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: process.env.SMTP_PORT || 587,
-            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS,
-            },
-            tls: {
-                rejectUnauthorized: false // Often needed for custom SMTP providers
-            }
+        return new Promise((resolve, reject) => {
+            sendpulse.init(API_ID, API_SECRET, TOKEN_STORAGE, (token) => {
+                if (token && token.is_error) {
+                    console.error('SendPulse Init Error:', token);
+                    return reject(new Error('SendPulse initialization failed'));
+                }
+
+                const emailBody = {
+                    html: options.html,
+                    text: options.message,
+                    subject: options.subject,
+                    from: {
+                        name: process.env.FROM_NAME || 'Yashoda Bhawan',
+                        email: process.env.FROM_EMAIL,
+                    },
+                    to: [
+                        {
+                            email: options.email,
+                        },
+                    ],
+                };
+
+                sendpulse.smtpSendMail((data) => {
+                    if (data && data.is_error) {
+                        console.error('SendPulse SMTP Error:', data);
+                        return reject(new Error(data.message || 'Error sending email via SendPulse'));
+                    }
+                    console.log('Email sent successfully via SendPulse:', data);
+                    resolve(data);
+                }, emailBody);
+            });
         });
-
-        const mailOptions = {
-            from: `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
-            to: options.email,
-            subject: options.subject,
-            text: options.message,
-            html: options.html,
-        };
-
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent successfully:', info.messageId);
-        return info;
     } catch (err) {
         console.error('Email sending failed:', err);
         throw err;
