@@ -295,7 +295,7 @@ const UserDashboard = () => {
                                     <Input
                                         placeholder="e.g. Physics I"
                                         value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                                         required
                                         className="rounded-xl bg-background border-border"
                                     />
@@ -305,7 +305,7 @@ const UserDashboard = () => {
                                     <Input
                                         placeholder="e.g. A"
                                         value={section}
-                                        onChange={(e) => setSection(e.target.value)}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSection(e.target.value)}
                                         required
                                         className="rounded-xl bg-background border-border"
                                     />
@@ -332,7 +332,7 @@ const UserDashboard = () => {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-                            {notes.map((note) => (
+                            {notes.map((note: any) => (
                                 <div key={note._id} className="group bg-card p-6 rounded-2xl border border-border/50 hover:border-primary/50 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
                                     <div className="absolute top-0 right-0 p-3">
                                         {note.isApproved && <CheckCircle className="w-4 h-4 text-green-500" />}

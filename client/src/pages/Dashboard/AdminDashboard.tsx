@@ -847,21 +847,21 @@ const AdminDashboard = () => {
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Number of Beds</label>
-                                        <Input type="number" placeholder="1" value={newRoom.beds} onChange={(e) => setNewRoom({ ...newRoom, beds: Number(e.target.value) })} className="rounded-lg bg-background" />
+                                        <Input type="number" placeholder="1" value={newRoom.beds} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, beds: Number(e.target.value) })} className="rounded-lg bg-background" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Capacity (Persons)</label>
-                                        <Input type="number" placeholder="1" value={newRoom.capacity} onChange={(e) => setNewRoom({ ...newRoom, capacity: Number(e.target.value) })} className="rounded-lg bg-background" />
+                                        <Input type="number" placeholder="1" value={newRoom.capacity} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, capacity: Number(e.target.value) })} className="rounded-lg bg-background" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Room Size</label>
-                                        <Input placeholder="e.g 150 sq ft" value={newRoom.size} onChange={(e) => setNewRoom({ ...newRoom, size: e.target.value })} className="rounded-lg bg-background" />
+                                        <Input placeholder="e.g 150 sq ft" value={newRoom.size} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, size: e.target.value })} className="rounded-lg bg-background" />
                                     </div>
 
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-sm font-medium">Room Image</label>
                                         <div className="flex flex-col sm:flex-row gap-4 items-center">
-                                            <Input type="file" accept="image/*" onChange={(e) => e.target.files && setRoomFile(e.target.files[0])} className="rounded-lg bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4 hover:file:bg-primary/20" />
+                                            <Input type="file" accept="image/*" onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && setRoomFile(e.target.files[0])} className="rounded-lg bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4 hover:file:bg-primary/20" />
                                             <div className="flex gap-2 w-full sm:w-auto">
                                                 <Button type="submit" className="rounded-full shadow-lg flex-1 sm:flex-none" disabled={isLoading}>
                                                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -880,7 +880,7 @@ const AdminDashboard = () => {
                                 </form>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {rooms.map(r => (
+                                    {rooms.map((r: any) => (
                                         <div key={r._id} className="group bg-card rounded-2xl overflow-hidden shadow-lg border border-border/50 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                             <div className="relative h-48 w-full overflow-hidden">
                                                 <img

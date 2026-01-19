@@ -59,7 +59,7 @@ export default function Rooms() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                {rooms.map((room, index) => (
+                                {rooms.map((room: any, index: number) => (
                                     <div
                                         key={room._id}
                                         className="group rounded-2xl overflow-hidden bg-gradient-to-br from-card to-secondary/30 border border-border/50 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
