@@ -24,6 +24,7 @@
     "multer": "^2.0.2",
     "nodemailer": "^6.9.16",
     "nodemon": "^3.1.11",
-    "pdfkit": "^0.17.2"
+    "pdfkit": "^0.17.2",
+    "resend": "^6.8.0"
   }
 }
