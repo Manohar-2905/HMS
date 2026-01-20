@@ -4,12 +4,15 @@ import api from "../api/axios";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { SEO } from "@/components/layout/SEO";
-import { Bed, Users, Maximize, Loader2 } from "lucide-react";
+import { Bed, Users, Maximize, Loader2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/Modal";
+import { RoomImageGallery } from "@/components/home/RoomImageGallery";
 
 export default function Rooms() {
     const [rooms, setRooms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
 
     useEffect(() => {
         const fetchRooms = async () => {
@@ -62,8 +65,9 @@ export default function Rooms() {
                                 {rooms.map((room: any, index: number) => (
                                     <div
                                         key={room._id}
-                                        className="group rounded-2xl overflow-hidden bg-gradient-to-br from-card to-secondary/30 border border-border/50 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
+                                        className="group rounded-2xl overflow-hidden bg-gradient-to-br from-card to-secondary/30 border border-border/50 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
                                         style={{ animationDelay: `${index * 100}ms` }}
+                                        onClick={() => setSelectedRoom(room)}
                                     >
                                         {/* Image */}
                                         <div className="relative h-64 overflow-hidden shrink-0">
@@ -79,6 +83,11 @@ export default function Rooms() {
                                                     <span className="text-sm text-gray-200">/month</span>
                                                 </div>
                                             </div>
+                                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
+                                                    <Eye className="w-5 h-5 text-white" />
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Content */}
@@ -89,7 +98,7 @@ export default function Rooms() {
 
                                             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
                                                 <div className="flex items-center gap-1.5" title="Beds">
-                                                    <Bed className="w-4 h-4 text-primary" />
+                                                    < Bed className="w-4 h-4 text-primary" />
                                                     <span>{room.beds} Bed{room.beds > 1 ? 's' : ''}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5" title="Capacity">
@@ -109,7 +118,7 @@ export default function Rooms() {
                                             </div>
 
                                             <div className="mt-8 pt-6 border-t border-border/50">
-                                                <Button className="w-full rounded-full shadow-lg" size="lg" asChild>
+                                                <Button className="w-full rounded-full shadow-lg" size="lg" asChild onClick={(e) => e.stopPropagation()}>
                                                     <Link to="/contact">
                                                         Contact Now
                                                     </Link>
@@ -121,6 +130,42 @@ export default function Rooms() {
                             </div>
                         )}
                     </div>
+
+                    <Modal
+                        isOpen={!!selectedRoom}
+                        onClose={() => setSelectedRoom(null)}
+                        title={selectedRoom?.roomName || "Room Details"}
+                        className="max-w-5xl"
+                    >
+                        {selectedRoom && (
+                            <div className="space-y-4">
+                                <RoomImageGallery
+                                    images={selectedRoom.images || []}
+                                />
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-xl text-center">
+                                    <div>
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost</p>
+                                        <p className="text-lg font-bold text-primary">₹{selectedRoom.roomCost}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Beds</p>
+                                        <p className="font-medium flex items-center gap-2"><Bed className="w-4 h-4" /> {selectedRoom.beds}</p>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capacity</p>
+                                        <p className="font-medium flex items-center gap-2"><Users className="w-4 h-4" /> {selectedRoom.capacity}</p>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Size</p>
+                                        <p className="font-medium flex items-center gap-2"><Maximize className="w-4 h-4" /> {selectedRoom.size}</p>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-muted/30 rounded-xl">
+                                    <p className="text-sm text-foreground/80 leading-relaxed text-center">{selectedRoom.roomDetails}</p>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
                 </section>
             </main>
             <Footer />

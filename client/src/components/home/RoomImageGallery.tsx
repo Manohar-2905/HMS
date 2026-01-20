@@ -6,32 +6,19 @@ import 'swiper/css';
 import 'swiper/css/effect-coverflow';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
-import { X } from 'lucide-react';
 
 interface RoomImageGalleryProps {
     images: string[];
-    onClose: () => void;
 }
 
-export function RoomImageGallery({ images, onClose }: RoomImageGalleryProps) {
-    // Ensure we have at least 4 images for the "4 image" requirement visualization
-    // If fewer are provided, we repeat them or use placeholders
-    const displayImages = [...images];
-    while (displayImages.length < 4) {
-        displayImages.push(...images.length > 0 ? images : ["https://placehold.co/600x400?text=No+Image"]);
-        if(displayImages.length >= 4) break;
-    }
-    // Cap at 4 if strictly required, but usually "store 4 image" means allow up to 4. 
-    // I'll show all available.
+export function RoomImageGallery({ images }: RoomImageGalleryProps) {
+    // Use provided images, or a fallback placeholder if none exist
+    const displayImages = images.length > 0
+        ? images
+        : ["https://placehold.co/600x400?text=No+Images+Uploaded"];
 
     return (
-        <div className="relative w-full h-[500px]">
-             <button 
-                onClick={onClose}
-                className="absolute top-4 right-4 z-50 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
-            >
-                <X className="w-6 h-6" />
-            </button>
+        <div className="relative w-full h-[300px] md:h-[450px]">
 
             <Swiper
                 effect={'coverflow'}

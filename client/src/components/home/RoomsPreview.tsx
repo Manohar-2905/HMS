@@ -60,17 +60,17 @@ export function RoomsPreview() {
                             onClick={() => setSelectedRoom(room)}
                         >
                             {/* Image */}
-                            <div className="relative h-56 overflow-hidden">
+                            <div className="relative h-64 overflow-hidden shrink-0">
                                 <img
-                                    src={room.images?.[0] || "https://placehold.co/600x400"}
+                                    src={room.images?.[0] || `https://placehold.co/600x400?text=${room.roomName}`}
                                     alt={room.roomName}
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                 />
-                                <div className="absolute inset-0 bg-gradient-to-t from-foreground/60 to-transparent" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
                                 <div className="absolute bottom-4 left-4 right-4">
                                     <div className="flex items-baseline gap-1">
-                                        <span className="font-display text-2xl font-bold text-primary-foreground">₹{room.roomCost}</span>
-                                        <span className="text-sm text-primary-foreground/70">/month</span>
+                                        <span className="font-display text-2xl font-bold text-white">₹{room.roomCost}</span>
+                                        <span className="text-sm text-gray-200">/month</span>
                                     </div>
                                 </div>
                                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -81,23 +81,38 @@ export function RoomsPreview() {
                             </div>
 
                             {/* Content */}
-                            <div className="p-6">
-                                <h3 className="font-display text-xl font-semibold text-foreground mb-4">
+                            <div className="p-6 flex flex-col flex-1">
+                                <h3 className="font-display text-2xl font-semibold text-foreground mb-3">
                                     {room.roomName}
                                 </h3>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-1.5">
-                                        <Bed className="w-4 h-4" />
+
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mb-6">
+                                    <div className="flex items-center gap-1.5" title="Beds">
+                                        <Bed className="w-4 h-4 text-primary" />
                                         <span>{room.beds} Bed{room.beds > 1 ? 's' : ''}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Users className="w-4 h-4" />
+                                    <div className="flex items-center gap-1.5" title="Capacity">
+                                        <Users className="w-4 h-4 text-primary" />
                                         <span>{room.capacity} Person{room.capacity > 1 ? 's' : ''}</span>
                                     </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Maximize className="w-4 h-4" />
+                                    <div className="flex items-center gap-1.5" title="Size">
+                                        <Maximize className="w-4 h-4 text-primary" />
                                         <span>{room.size}</span>
                                     </div>
+                                </div>
+
+                                <div className="space-y-4 flex-1">
+                                    <p className="text-muted-foreground text-sm line-clamp-3">
+                                        {room.roomDetails}
+                                    </p>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-border/50">
+                                    <Button className="w-full rounded-full shadow-lg" size="lg" asChild onClick={(e) => e.stopPropagation()}>
+                                        <Link to="/contact">
+                                            Contact Now
+                                        </Link>
+                                    </Button>
                                 </div>
                             </div>
                         </div>
@@ -115,28 +130,27 @@ export function RoomsPreview() {
                     <div className="space-y-4">
                         <RoomImageGallery
                             images={selectedRoom.images || []}
-                            onClose={() => setSelectedRoom(null)}
                         />
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-xl">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-xl text-center">
                             <div>
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cost</p>
                                 <p className="text-lg font-bold text-primary">₹{selectedRoom.roomCost}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
                             </div>
-                            <div>
+                            <div className="flex flex-col items-center">
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Beds</p>
                                 <p className="font-medium flex items-center gap-2"><Bed className="w-4 h-4" /> {selectedRoom.beds}</p>
                             </div>
-                            <div>
+                            <div className="flex flex-col items-center">
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Capacity</p>
                                 <p className="font-medium flex items-center gap-2"><Users className="w-4 h-4" /> {selectedRoom.capacity}</p>
                             </div>
-                            <div>
+                            <div className="flex flex-col items-center">
                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Size</p>
                                 <p className="font-medium flex items-center gap-2"><Maximize className="w-4 h-4" /> {selectedRoom.size}</p>
                             </div>
                         </div>
                         <div className="p-4 bg-muted/30 rounded-xl">
-                            <p className="text-sm text-foreground/80 leading-relaxed">{selectedRoom.roomDetails}</p>
+                            <p className="text-sm text-foreground/80 leading-relaxed text-center">{selectedRoom.roomDetails}</p>
                         </div>
                     </div>
                 )}

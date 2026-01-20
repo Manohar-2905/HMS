@@ -35,31 +35,31 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
     if (!isOpen) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-black/60 backdrop-blur-sm animate-fade-in overflow-y-auto">
             <div
                 className={cn(
-                    "relative w-full max-w-lg rounded-2xl shadow-2xl animate-zoom-in overflow-hidden",
-                    "bg-card/90 backdrop-blur-xl border border-white/20",
+                    "relative w-full max-w-lg my-auto rounded-2xl shadow-2xl animate-zoom-in overflow-hidden",
+                    "bg-card/90 backdrop-blur-xl border border-white/20 flex flex-col max-h-[90vh]",
                     className
                 )}
             >
                 {/* Decorative header gradient */}
-                <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-primary/80 to-primary/60" />
+                <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-primary via-primary/80 to-primary/60 shrink-0" />
 
-                <div className="flex items-center justify-between p-6 pb-2">
-                    <h2 className="text-2xl font-bold font-display bg-clip-text text-transparent bg-gradient-to-r from-primary to-orange-600">
+                <div className="flex items-center justify-between p-4 md:p-6 pb-2 shrink-0">
+                    <h2 className="text-xl md:text-2xl font-bold font-display bg-clip-text text-transparent bg-gradient-to-r from-primary to-orange-600 truncate mr-4">
                         {title}
                     </h2>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-full hover:bg-muted/50"
+                        className="h-8 w-8 rounded-full hover:bg-muted/50 shrink-0"
                         onClick={onClose}
                     >
                         <X className="h-4 w-4" />
                     </Button>
                 </div>
-                <div className="p-6 pt-2">
+                <div className="p-4 md:p-6 pt-2 overflow-y-auto custom-scrollbar">
                     {children}
                 </div>
             </div>

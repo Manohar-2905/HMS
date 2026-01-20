@@ -1,10 +1,11 @@
-
 import { useEffect, useState } from 'react';
 import api from '../../api/axios';
 import { Loader2, Maximize, Folder, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 
 export function GallerySection() {
+    const { user } = useAuth();
     const [gallery, setGallery] = useState<any[]>([]);
     const [events, setEvents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -101,21 +102,27 @@ export function GallerySection() {
                         <p className="text-muted-foreground font-medium animate-pulse">Loading Collections...</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-5xl mx-auto">
-                        <FolderCard
-                            type="gallery"
-                            title="Hostel Gallery"
-                            count={gallery.length}
-                            image={gallery[0]?.image}
-                            onClick={() => setActiveFolder('gallery')}
-                        />
-                        <FolderCard
-                            type="events"
-                            title="Celebration Events"
-                            count={events.length}
-                            image={events[0]?.image}
-                            onClick={() => setActiveFolder('events')}
-                        />
+                    <div className="flex flex-wrap justify-center gap-10 max-w-5xl mx-auto">
+                        <div className="w-full md:w-[calc(50%-20px)] max-w-md">
+                            <FolderCard
+                                type="gallery"
+                                title="Hostel Gallery"
+                                count={gallery.length}
+                                image={gallery[0]?.image}
+                                onClick={() => setActiveFolder('gallery')}
+                            />
+                        </div>
+                        {user && (
+                            <div className="w-full md:w-[calc(50%-20px)] max-w-md">
+                                <FolderCard
+                                    type="events"
+                                    title="Celebration Events"
+                                    count={events.length}
+                                    image={events[0]?.image}
+                                    onClick={() => setActiveFolder('events')}
+                                />
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
