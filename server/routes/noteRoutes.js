@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { getNotes, createNote, deleteNote, approveNote } = require('../controllers/noteController');
+const { getNotes, createNote, deleteNote, approveNote, createFolder, deleteFolder, proxyPdf } = require('../controllers/noteController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
 
 router.route('/').get(protect, getNotes).post(protect, upload.single('pdf'), createNote);
+router.route('/folder').post(protect, admin, createFolder);
+router.route('/folder/:id').delete(protect, admin, deleteFolder);
+router.route('/proxy/:id').get(protect, proxyPdf);
 router.route('/:id/approve').put(protect, admin, approveNote);
 router.route('/:id').delete(protect, admin, deleteNote);
 

@@ -28,6 +28,13 @@ const userSchema = mongoose.Schema(
         isPendingApproval: { type: Boolean, default: false },
         resetPasswordOtp: { type: String },
         resetPasswordOtpExpire: { type: Date },
+        paymentHistory: [
+            {
+                amount: { type: Number, required: true },
+                date: { type: Date, default: Date.now },
+                remarks: { type: String }
+            }
+        ],
     },
     { timestamps: true }
 );

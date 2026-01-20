@@ -42,90 +42,99 @@ const loginUser = async (req, res) => {
 // @route   POST /api/auth/register
 // @access  Private/Admin
 const registerUser = async (req, res) => {
-    const {
-        name, email, password, role, phone, address, roomType, totalAmount, paidAmount,
-        dob, fatherName, fatherOccupation, fatherPhone, motherName, motherPhone,
-        aadharNo, visitors, university, registrationNo
-    } = req.body;
+    try {
+        const {
+            name, email, password, role, phone, address, roomType, totalAmount, paidAmount,
+            dob, fatherName, fatherOccupation, fatherPhone, motherName, motherPhone,
+            aadharNo, visitors, university, registrationNo
+        } = req.body;
 
-    const userExists = await User.findOne({ email });
+        const userExists = await User.findOne({ email });
 
-    if (userExists) {
-        return res.status(400).json({ message: 'User already exists' });
-    }
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
+        }
 
-    let photoUrl = '';
-    if (req.file) {
-        try {
-            const streamUpload = (fileBuffer) => {
-                return new Promise((resolve, reject) => {
-                    const stream = cloudinary.uploader.upload_stream(
-                        { resource_type: 'image', folder: 'users' },
-                        (error, result) => {
-                            if (result) {
-                                resolve(result);
-                            } else {
-                                reject(error);
+        let photoUrl = '';
+        if (req.file) {
+            try {
+                const streamUpload = (fileBuffer) => {
+                    return new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            { resource_type: 'image', folder: 'users' },
+                            (error, result) => {
+                                if (result) {
+                                    resolve(result);
+                                } else {
+                                    reject(error);
+                                }
                             }
-                        }
-                    );
-                    Readable.from(fileBuffer).pipe(stream);
-                });
-            };
-            const result = await streamUpload(req.file.buffer);
-            photoUrl = result.secure_url;
-        } catch (error) {
-            console.error('Photo upload failed', error);
+                        );
+                        Readable.from(fileBuffer).pipe(stream);
+                    });
+                };
+                const result = await streamUpload(req.file.buffer);
+                photoUrl = result.secure_url;
+            } catch (error) {
+                console.error('Photo upload failed', error);
+            }
         }
-    }
 
-    const remainingAmount = totalAmount - paidAmount;
+        const remainingAmount = (Number(totalAmount) || 0) - (Number(paidAmount) || 0);
 
-    // Handle visitors array if sent as string (e.g. JSON stringified or comma separated)
-    let visitorsList = visitors;
-    if (typeof visitors === 'string') {
-        try {
-            visitorsList = JSON.parse(visitors);
-        } catch (e) {
-            visitorsList = visitors.split(',').map(v => v.trim());
+        // Handle visitors array if sent as string (e.g. JSON stringified or comma separated)
+        let visitorsList = visitors;
+        if (typeof visitors === 'string' && visitors.trim()) {
+            try {
+                visitorsList = JSON.parse(visitors);
+            } catch (e) {
+                visitorsList = visitors.split(',').map(v => v.trim());
+            }
+        } else if (!visitors) {
+            visitorsList = [];
         }
-    }
 
-    const user = await User.create({
-        name,
-        email,
-        password,
-        role: role || 'user',
-        phone,
-        address,
-        roomType,
-        totalAmount,
-        paidAmount,
-        remainingAmount,
-        dob,
-        fatherName,
-        fatherOccupation,
-        fatherPhone,
-        motherName,
-        motherPhone,
-        aadharNo,
-        visitors: visitorsList,
-        university,
-        registrationNo,
-        photo: photoUrl
-    });
-
-    if (user) {
-        res.status(201).json({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            photo: user.photo,
-            token: generateToken(user._id),
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: role || 'user',
+            phone,
+            address,
+            roomType: roomType || 'Unassigned',
+            totalAmount: Number(totalAmount) || 0,
+            paidAmount: Number(paidAmount) || 0,
+            remainingAmount: remainingAmount,
+            dob,
+            fatherName,
+            fatherOccupation,
+            fatherPhone,
+            motherName,
+            motherPhone,
+            aadharNo,
+            visitors: Array.isArray(visitorsList) ? visitorsList : [],
+            university,
+            registrationNo,
+            photo: photoUrl
         });
-    } else {
-        res.status(400).json({ message: 'Invalid user data' });
+
+        if (user) {
+            res.status(201).json({
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                photo: user.photo,
+                token: generateToken(user._id),
+            });
+        } else {
+            res.status(400).json({ message: 'Invalid user data' });
+        }
+    } catch (error) {
+        console.error('Register error:', error);
+        res.status(500).json({ 
+            message: error.message || 'Server Error' 
+        });
     }
 };
 
@@ -133,74 +142,79 @@ const registerUser = async (req, res) => {
 // @route   POST /api/auth/register-request
 // @access  Public
 const requestRegistration = async (req, res) => {
-    const {
-        name, email, password, phone, address,
-        dob, fatherName, fatherOccupation, fatherPhone, motherName, motherPhone,
-        aadharNo, university, registrationNo
-    } = req.body;
+    try {
+        const {
+            name, email, password, phone, address,
+            dob, fatherName, fatherOccupation, fatherPhone, motherName, motherPhone,
+            aadharNo, university, registrationNo
+        } = req.body;
 
-    const userExists = await User.findOne({ email });
+        const userExists = await User.findOne({ email });
 
-    if (userExists) {
-        return res.status(400).json({ message: 'User already exists' });
-    }
-
-    let photoUrl = '';
-    if (req.file) {
-        try {
-            const streamUpload = (fileBuffer) => {
-                return new Promise((resolve, reject) => {
-                    const stream = cloudinary.uploader.upload_stream(
-                        { resource_type: 'image', folder: 'users' },
-                        (error, result) => {
-                            if (result) {
-                                resolve(result);
-                            } else {
-                                reject(error);
-                            }
-                        }
-                    );
-                    Readable.from(fileBuffer).pipe(stream);
-                });
-            };
-            const result = await streamUpload(req.file.buffer);
-            photoUrl = result.secure_url;
-        } catch (error) {
-            console.error('Photo upload failed', error);
+        if (userExists) {
+            return res.status(400).json({ message: 'User already exists' });
         }
-    }
 
-    const user = await User.create({
-        name,
-        email,
-        password,
-        role: 'user',
-        phone,
-        address,
-        roomType: 'Unassigned',
-        totalAmount: 0,
-        paidAmount: 0,
-        remainingAmount: 0,
-        dob,
-        fatherName,
-        fatherOccupation,
-        fatherPhone,
-        motherName,
-        motherPhone,
-        aadharNo,
-        university,
-        registrationNo,
-        photo: photoUrl,
-        isVerified: false,
-        isPendingApproval: true
-    });
+        let photoUrl = '';
+        if (req.file) {
+            try {
+                const streamUpload = (fileBuffer) => {
+                    return new Promise((resolve, reject) => {
+                        const stream = cloudinary.uploader.upload_stream(
+                            { resource_type: 'image', folder: 'users' },
+                            (error, result) => {
+                                if (result) {
+                                    resolve(result);
+                                } else {
+                                    reject(error);
+                                }
+                            }
+                        );
+                        Readable.from(fileBuffer).pipe(stream);
+                    });
+                };
+                const result = await streamUpload(req.file.buffer);
+                photoUrl = result.secure_url;
+            } catch (error) {
+                console.error('Photo upload failed', error);
+            }
+        }
 
-    if (user) {
-        res.status(201).json({
-            message: 'Registration request submitted. Please wait for admin approval.'
+        const user = await User.create({
+            name,
+            email,
+            password,
+            role: 'user',
+            phone,
+            address,
+            roomType: 'Unassigned',
+            totalAmount: 0,
+            paidAmount: 0,
+            remainingAmount: 0,
+            dob,
+            fatherName,
+            fatherOccupation,
+            fatherPhone,
+            motherName,
+            motherPhone,
+            aadharNo,
+            university,
+            registrationNo,
+            photo: photoUrl,
+            isVerified: false,
+            isPendingApproval: true
         });
-    } else {
-        res.status(400).json({ message: 'Invalid user data' });
+
+        if (user) {
+            res.status(201).json({
+                message: 'Registration request submitted. Please wait for admin approval.'
+            });
+        } else {
+            res.status(400).json({ message: 'Invalid user data' });
+        }
+    } catch (error) {
+        console.error('Request registration error:', error);
+        res.status(500).json({ message: error.message || 'Server Error' });
     }
 };
 
@@ -216,15 +230,39 @@ const getPendingUsers = async (req, res) => {
 // @route   POST /api/auth/approve-user/:id
 // @access  Private/Admin
 const approveUser = async (req, res) => {
-    const user = await User.findById(req.params.id);
+    try {
+        const user = await User.findById(req.params.id);
 
-    if (user) {
-        user.isVerified = true;
-        user.isPendingApproval = false;
-        await user.save();
-        res.json({ message: 'User approved successfully' });
-    } else {
-        res.status(404).json({ message: 'User not found' });
+        if (user) {
+            user.isVerified = true;
+            user.isPendingApproval = false;
+            
+            // Handle optional payment info during approval
+            if (req.body.totalAmount !== undefined) user.totalAmount = Number(req.body.totalAmount) || 0;
+            if (req.body.paidAmount !== undefined) {
+                const initialPaid = Number(req.body.paidAmount) || 0;
+                user.paidAmount = initialPaid;
+                
+                // Record initial payment in history if > 0
+                if (initialPaid > 0) {
+                    user.paymentHistory.push({
+                        amount: initialPaid,
+                        date: Date.now(),
+                        remarks: 'Initial payment upon approval'
+                    });
+                }
+            }
+            
+            user.remainingAmount = (user.totalAmount || 0) - (user.paidAmount || 0);
+
+            await user.save();
+            res.json({ message: 'User approved successfully' });
+        } else {
+            res.status(404).json({ message: 'User not found' });
+        }
+    } catch (error) {
+        console.error('Approve error:', error);
+        res.status(500).json({ message: error.message || 'Server Error' });
     }
 };
 
@@ -445,100 +483,113 @@ const deleteUser = async (req, res) => {
 // @route   PUT /api/auth/users/:id
 // @access  Private/Admin
 const updateUser = async (req, res) => {
-    const user = await User.findById(req.params.id);
+    try {
+        const user = await User.findById(req.params.id);
 
-    if (user) {
-        user.name = req.body.name || user.name;
-        user.email = req.body.email || user.email;
-        user.phone = req.body.phone || user.phone;
-        user.address = req.body.address || user.address;
-        user.roomType = req.body.roomType || user.roomType;
-        user.fatherName = req.body.fatherName || user.fatherName;
-        user.fatherPhone = req.body.fatherPhone || user.fatherPhone;
-        user.motherName = req.body.motherName || user.motherName;
-        user.motherPhone = req.body.motherPhone || user.motherPhone;
-        user.dob = req.body.dob || user.dob;
-        user.aadharNo = req.body.aadharNo || user.aadharNo;
-        user.university = req.body.university || user.university;
-        user.registrationNo = req.body.registrationNo || user.registrationNo;
+        if (user) {
+            user.name = req.body.name || user.name;
+            user.email = req.body.email || user.email;
+            user.phone = req.body.phone || user.phone;
+            user.address = req.body.address || user.address;
+            user.roomType = req.body.roomType || user.roomType;
+            user.fatherName = req.body.fatherName || user.fatherName;
+            user.fatherPhone = req.body.fatherPhone || user.fatherPhone;
+            user.motherName = req.body.motherName || user.motherName;
+            user.motherPhone = req.body.motherPhone || user.motherPhone;
+            user.dob = req.body.dob || user.dob;
+            user.aadharNo = req.body.aadharNo || user.aadharNo;
+            user.university = req.body.university || user.university;
+            user.registrationNo = req.body.registrationNo || user.registrationNo;
 
-        // Handle Visitors update if provided
-        if (req.body.visitors) {
-            let visitorsList = req.body.visitors;
-            if (typeof req.body.visitors === 'string') {
-                try {
-                    visitorsList = JSON.parse(req.body.visitors);
-                } catch (e) {
-                    visitorsList = req.body.visitors.split(',').map(v => v.trim());
+            // Handle Visitors update if provided
+            if (req.body.visitors) {
+                let visitorsList = req.body.visitors;
+                if (typeof req.body.visitors === 'string') {
+                    try {
+                        visitorsList = JSON.parse(req.body.visitors);
+                    } catch (e) {
+                        visitorsList = req.body.visitors.split(',').map(v => v.trim());
+                    }
                 }
+                user.visitors = Array.isArray(visitorsList) ? visitorsList : user.visitors;
             }
-            user.visitors = visitorsList;
-        }
 
-        // Handle Payment Update (Incremental)
-        if (req.body.paymentUpdate) {
-            const addedAmount = Number(req.body.paymentUpdate);
-            if (!isNaN(addedAmount)) {
-                user.paidAmount = (user.paidAmount || 0) + addedAmount;
-            }
-        }
-
-        // Allow manual override of total/paid if specifically passed (not just increment)
-        if (req.body.totalAmount !== undefined) user.totalAmount = Number(req.body.totalAmount);
-        if (req.body.paidAmount !== undefined && !req.body.paymentUpdate) user.paidAmount = Number(req.body.paidAmount);
-
-        // Handle photo update
-        if (req.file) {
-            try {
-                // Delete old photo if it exists
-                if (user.photo) {
-                    await deleteFile(user.photo, 'users');
-                }
-
-                // Upload new photo
-                const streamUpload = (fileBuffer) => {
-                    return new Promise((resolve, reject) => {
-                        const stream = cloudinary.uploader.upload_stream(
-                            { resource_type: 'image', folder: 'users' },
-                            (error, result) => {
-                                if (result) {
-                                    resolve(result);
-                                } else {
-                                    reject(error);
-                                }
-                            }
-                        );
-                        Readable.from(fileBuffer).pipe(stream);
+            // Handle Payment Update (Incremental)
+            if (req.body.paymentUpdate) {
+                const addedAmount = Number(req.body.paymentUpdate);
+                if (!isNaN(addedAmount)) {
+                    user.paidAmount = (user.paidAmount || 0) + addedAmount;
+                    
+                    // Record in history
+                    user.paymentHistory.push({
+                        amount: addedAmount,
+                        date: Date.now(),
+                        remarks: req.body.remarks || 'Incremental payment'
                     });
-                };
-                const result = await streamUpload(req.file.buffer);
-                user.photo = result.secure_url;
-            } catch (error) {
-                console.error('Photo update failed', error);
+                }
             }
+
+            // Allow manual override of total/paid if specifically passed (not just increment)
+            if (req.body.totalAmount !== undefined) user.totalAmount = Number(req.body.totalAmount) || 0;
+            if (req.body.paidAmount !== undefined && !req.body.paymentUpdate) user.paidAmount = Number(req.body.paidAmount) || 0;
+
+            // Handle photo update
+            if (req.file) {
+                try {
+                    // Delete old photo if it exists
+                    if (user.photo) {
+                        await deleteFile(user.photo, 'users');
+                    }
+
+                    // Upload new photo
+                    const streamUpload = (fileBuffer) => {
+                        return new Promise((resolve, reject) => {
+                            const stream = cloudinary.uploader.upload_stream(
+                                { resource_type: 'image', folder: 'users' },
+                                (error, result) => {
+                                    if (result) {
+                                        resolve(result);
+                                    } else {
+                                        reject(error);
+                                    }
+                                }
+                            );
+                            Readable.from(fileBuffer).pipe(stream);
+                        });
+                    };
+                    const result = await streamUpload(req.file.buffer);
+                    user.photo = result.secure_url;
+                } catch (error) {
+                    console.error('Photo update failed', error);
+                }
+            }
+
+            // Recalculate remaining
+            user.remainingAmount = (Number(user.totalAmount) || 0) - (Number(user.paidAmount) || 0);
+
+            const updatedUser = await user.save();
+
+            res.json({
+                _id: updatedUser._id,
+                name: updatedUser.name,
+                email: updatedUser.email,
+                role: updatedUser.role,
+                token: generateToken(updatedUser._id),
+                // Send back full object for UI update
+                phone: updatedUser.phone,
+                roomType: updatedUser.roomType,
+                totalAmount: updatedUser.totalAmount,
+                paidAmount: updatedUser.paidAmount,
+                remainingAmount: updatedUser.remainingAmount,
+                photo: updatedUser.photo,
+                paymentHistory: updatedUser.paymentHistory
+            });
+        } else {
+            res.status(404).json({ message: 'User not found' });
         }
-
-        // Recalculate remaining
-        user.remainingAmount = user.totalAmount - user.paidAmount;
-
-        const updatedUser = await user.save();
-
-        res.json({
-            _id: updatedUser._id,
-            name: updatedUser.name,
-            email: updatedUser.email,
-            role: updatedUser.role,
-            token: generateToken(updatedUser._id),
-            // Send back full object for UI update
-            phone: updatedUser.phone,
-            roomType: updatedUser.roomType,
-            totalAmount: updatedUser.totalAmount,
-            paidAmount: updatedUser.paidAmount,
-            remainingAmount: updatedUser.remainingAmount,
-            photo: updatedUser.photo
-        });
-    } else {
-        res.status(404).json({ message: 'User not found' });
+    } catch (error) {
+        console.error('Update error:', error);
+        res.status(500).json({ message: error.message || 'Server Error' });
     }
 };
 

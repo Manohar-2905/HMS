@@ -18,7 +18,7 @@ const createRoom = async (req, res) => {
     let images = [];
 
     try {
-        if (req.file) {
+        if (req.files && req.files.length > 0) {
             const streamUpload = (fileBuffer) => {
                 return new Promise((resolve, reject) => {
                     const stream = cloudinary.uploader.upload_stream(
@@ -35,15 +35,23 @@ const createRoom = async (req, res) => {
                 });
             };
 
-            const result = await streamUpload(req.file.buffer);
-            images.push(result.secure_url);
+            for (const file of req.files) {
+                const result = await streamUpload(file.buffer);
+                images.push(result.secure_url);
+            }
         }
         // If images sent as string/array (fallback or additional)
         if (req.body.images) {
             if (Array.isArray(req.body.images)) {
                 images = [...images, ...req.body.images];
             } else {
-                images.push(req.body.images);
+                try {
+                    const parsed = JSON.parse(req.body.images);
+                    if (Array.isArray(parsed)) images = [...images, ...parsed];
+                    else images.push(req.body.images);
+                } catch (e) {
+                    images.push(req.body.images);
+                }
             }
         }
 
@@ -101,7 +109,7 @@ const updateRoom = async (req, res) => {
         room.capacity = capacity || room.capacity;
         room.size = size || room.size;
 
-        if (req.file) {
+        if (req.files && req.files.length > 0) {
             const streamUpload = (fileBuffer) => {
                 return new Promise((resolve, reject) => {
                     const stream = cloudinary.uploader.upload_stream(
@@ -117,10 +125,17 @@ const updateRoom = async (req, res) => {
                     Readable.from(fileBuffer).pipe(stream);
                 });
             };
-            const result = await streamUpload(req.file.buffer);
-            // Replace images array with new image (or you could append)
-            // For now, replacing to keep it simple as per "update" usually implies
-            room.images = [result.secure_url];
+
+            const newImages = [];
+            for (const file of req.files) {
+                const result = await streamUpload(file.buffer);
+                newImages.push(result.secure_url);
+            }
+            
+            // If "keepExisting" is true, we append. Otherwise we replace.
+            // For now, let's replace but support clear/additional via frontend logic if needed.
+            // But the user said "store 4 images", so during edit we should probably allow updating those 4.
+            room.images = newImages; 
         }
 
         const updatedRoom = await room.save();

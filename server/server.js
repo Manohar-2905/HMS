@@ -28,6 +28,8 @@ const noteRoutes = require('./routes/noteRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const invoiceRoutes = require('./routes/invoiceRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
+const galleryRoutes = require('./routes/galleryRoutes');
+const eventRoutes = require('./routes/eventRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
@@ -35,6 +37,8 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/invoice', invoiceRoutes);
 app.use('/api/attendance', attendanceRoutes);
+app.use('/api/gallery', galleryRoutes);
+app.use('/api/events', eventRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Serve static assets in production
@@ -52,6 +56,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 const PORT = process.env.PORT || 5000;
+
+// Error Handling Middleware
+app.use((err, req, res, next) => {
+    console.error('SERVER ERROR:', err);
+    const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+    res.status(statusCode).json({
+        message: err.message,
+        stack: process.env.NODE_ENV === 'production' ? null : err.stack,
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

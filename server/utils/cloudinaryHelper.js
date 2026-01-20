@@ -39,10 +39,18 @@ const deleteFile = async (fileUrl, folder) => {
         // If we want to be safe, we can try deleting as 'image' and 'raw' or 'video'.
         // But most likely it's 'image' for PDFs viewed in browser or 'raw'.
 
-        // Actually, for PDF uploaded as 'auto', it is often stored as 'image' resource type in Cloudinary (multi-page). 
-        // But let's check the note controller; we changed it to 'auto'.
-
-        await cloudinary.uploader.destroy(publicId);
+        // For PDFs uploaded as 'raw', we need to specify resource_type
+        // Try raw first (for new uploads), then fallback to image (for old uploads)
+        try {
+            await cloudinary.uploader.destroy(publicId, { resource_type: 'raw' });
+        } catch (rawError) {
+            // Fallback to image type for backwards compatibility with old uploads
+            try {
+                await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+            } catch (imageError) {
+                console.error('Failed to delete file from Cloudinary:', imageError);
+            }
+        }
 
     } catch (error) {
         console.error('Error deleting file from Cloudinary:', error);

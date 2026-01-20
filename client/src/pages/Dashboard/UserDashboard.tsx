@@ -10,7 +10,9 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SEO } from '@/components/layout/SEO';
 import { FileText, Upload, Lock, User, Wallet, CheckCircle, Pencil, Loader2, Calendar } from 'lucide-react';
+import { AttendanceCalendar } from '@/components/dashboard/AttendanceCalendar';
 import toast from 'react-hot-toast';
+import { EventsSection } from '../../components/dashboard/EventsSection';
 
 // Interfaces
 interface Note {
@@ -382,6 +384,11 @@ const UserDashboard = () => {
                         </div>
                     </div>
 
+                    {/* Events Section */}
+                    <div className="mb-12">
+                        <EventsSection />
+                    </div>
+
                     {/* Attendance Section */}
                     <div className="mt-12 bg-white border border-border shadow-md rounded-3xl p-8 transition-all hover:shadow-lg">
                         <div className="flex items-center gap-4 mb-8">
@@ -413,38 +420,10 @@ const UserDashboard = () => {
                             </div>
                         </div>
 
-                        <div className="overflow-x-auto rounded-xl border border-border/50">
-                            <table className="w-full text-sm text-left">
-                                <thead className="bg-muted/30">
-                                    <tr className="border-b border-border/50">
-                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground">Date</th>
-                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground">Status</th>
-                                        <th className="px-6 py-4 font-bold uppercase text-[10px] text-muted-foreground text-right">Remarks</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-border/30">
-                                    {attendance.slice(0, 10).map((record) => (
-                                        <tr key={record._id} className="hover:bg-muted/10 transition-colors">
-                                            <td className="px-6 py-4 font-medium">{new Date(record.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-                                            <td className="px-6 py-4">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase inline-block text-center min-w-[80px] ${record.status === 'Present' ? 'bg-green-100 text-green-600' :
-                                                    record.status === 'Absent' ? 'bg-red-100 text-red-600' :
-                                                        'bg-amber-100 text-amber-600'
-                                                    }`}>
-                                                    {record.status}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 text-muted-foreground text-right">{record.remarks || '-'}</td>
-                                        </tr>
-                                    ))}
-                                    {attendance.length === 0 && (
-                                        <tr>
-                                            <td colSpan={3} className="px-6 py-8 text-center text-muted-foreground italic">No attendance records found yet.</td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                        <div className="mt-8">
+                            {user && <AttendanceCalendar userId={user._id} token={user.token} className="border-none shadow-none bg-muted/20" />}
                         </div>
+
                     </div>
                 </div>
             </main>

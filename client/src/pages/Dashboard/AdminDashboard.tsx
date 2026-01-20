@@ -1,32 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 import api from '../../api/axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Trash2, Download, Users, Bed, FileText, ArrowLeft, Maximize, User, Edit3, Printer, Loader2, CheckCircle, UserPlus, Lock, Bell, Check, X, Calendar } from 'lucide-react';
-import { saveAs } from 'file-saver';
+import { Trash2, Download, Users, Bed, FileText, ArrowLeft, Maximize, User, Edit3, Printer, Loader2, CheckCircle, UserPlus, Lock, Bell, Check, X, Calendar, ChevronDown, ChevronUp, Folder, Home, MoreVertical, FolderPlus, Grid, List as ListIcon } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SEO } from '@/components/layout/SEO';
 import { Modal } from '@/components/ui/Modal';
+// Removed react-pdf imports - using Google Docs Viewer instead (like CA website)
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
+import { AttendanceCalendar } from '@/components/dashboard/AttendanceCalendar';
 import toast from 'react-hot-toast';
+import { cn } from '@/lib/utils';
 
 const AdminDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes' | 'attendance'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes' | 'attendance' | 'gallery' | 'events'>('users');
     const [users, setUsers] = useState<any[]>([]);
     const [rooms, setRooms] = useState<any[]>([]);
     const [notes, setNotes] = useState<any[]>([]);
+    const [folders, setFolders] = useState<any[]>([]);
+    const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+    const [_currentFolder, setCurrentFolder] = useState<any | null>(null);
+    const [breadcrumbs, setBreadcrumbs] = useState<any[]>([{ id: null, name: 'Home' }]);
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [newFolderName, setNewFolderName] = useState('');
+    const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+    const [gallery, setGallery] = useState<any[]>([]);
+    const [events, setEvents] = useState<any[]>([]);
     const [pendingUsers, setPendingUsers] = useState<any[]>([]);
     const [deleteConfirm, setDeleteConfirm] = useState<{
         isOpen: boolean;
-        type: 'room' | 'note' | 'user' | null;
+        type: 'room' | 'note' | 'user' | 'gallery' | 'event' | 'folder' | null;
         id: string | null;
     }>({ isOpen: false, type: null, id: null });
+
+    // PDF Preview State
+    const [pdfPreview, setPdfPreview] = useState<{
+        isOpen: boolean;
+        url: string | null;
+        title: string | null;
+        noteId: string | null;
+    }>({ isOpen: false, url: null, title: null, noteId: null });
+    const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+    // Removed react-pdf state - using Google Docs Viewer instead
     const [successPopup, setSuccessPopup] = useState<{
         isOpen: boolean;
         title: string;
@@ -39,8 +62,19 @@ const AdminDashboard = () => {
     const [isEditingUser, setIsEditingUser] = useState(false);
     const [editFormData, setEditFormData] = useState<any>({});
     const [paymentUpdateAmount, setPaymentUpdateAmount] = useState('');
+    const [paymentRemarks, setPaymentRemarks] = useState('');
+    const [showPaymentHistory, setShowPaymentHistory] = useState(false);
     const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
     const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
+    const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
+    const [bulkData, setBulkData] = useState({
+        userId: '',
+        userName: '',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        status: 'Absent',
+        remarks: ''
+    });
 
     // Forms
     const [newUser, setNewUser] = useState({
@@ -54,11 +88,18 @@ const AdminDashboard = () => {
     const [userPhoto, setUserPhoto] = useState<File | null>(null);
 
     const [newRoom, setNewRoom] = useState({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
-    const [roomFile, setRoomFile] = useState<File | null>(null);
+    const [roomFiles, setRoomFiles] = useState<File[]>([]);
     const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
     const [noteTitle, setNoteTitle] = useState('');
     const [noteSection, setNoteSection] = useState('');
     const [noteFile, setNoteFile] = useState<File | null>(null);
+
+    const [newGalleryItem, setNewGalleryItem] = useState({ title: '', category: '' });
+    const [galleryFile, setGalleryFile] = useState<File | null>(null);
+
+    const [newEvent, setNewEvent] = useState({ title: '', category: 'Celebration' });
+    const [eventFile, setEventFile] = useState<File | null>(null);
+
     const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
     const [isChangePasswordModalOpen, setIsChangePasswordModalOpen] = useState(false);
     const [newAdmin, setNewAdmin] = useState({
@@ -67,7 +108,7 @@ const AdminDashboard = () => {
 
     useEffect(() => {
         fetchData();
-    }, [activeTab]);
+    }, [activeTab, attendanceDate]);
 
     const fetchData = async () => {
         const token = user?.token;
@@ -81,13 +122,23 @@ const AdminDashboard = () => {
                 const { data } = await api.get('/api/rooms');
                 setRooms(data);
             } else if (activeTab === 'notes') {
-                const { data } = await api.get('/api/notes', config);
-                setNotes(data);
+                const params = currentFolderId ? `?folderId=${currentFolderId}` : '';
+                const { data } = await api.get(`/api/notes${params}`, config);
+                setNotes(data.notes);
+                setFolders(data.folders || []);
+                setCurrentFolder(data.currentFolder);
+                // Breadcrumb update logic could go here or be handled by click navigation
             } else if (activeTab === 'attendance') {
                 const { data: attData } = await api.get(`/api/attendance/date/${attendanceDate}`, config);
                 setAttendanceRecords(attData);
                 const { data: userData } = await api.get('/api/auth/users', config);
                 setUsers(userData);
+            } else if (activeTab === 'gallery') {
+                const { data } = await api.get('/api/gallery');
+                setGallery(data);
+            } else if (activeTab === 'events') {
+                const { data } = await api.get('/api/events', config);
+                setEvents(data);
             }
 
             // Always fetch pending users for the notification badge
@@ -119,12 +170,11 @@ const AdminDashboard = () => {
             };
 
             Object.keys(submissionData).forEach(key => {
+                const value = (submissionData as any)[key];
                 if (key === 'visitors') {
-                    // @ts-ignore
-                    formData.append('visitors', JSON.stringify(submissionData.visitors));
-                } else {
-                    // @ts-ignore
-                    formData.append(key, submissionData[key]);
+                    formData.append('visitors', JSON.stringify(value));
+                } else if (value !== undefined && value !== null) {
+                    formData.append(key, value.toString());
                 }
             });
             if (userPhoto) {
@@ -136,7 +186,10 @@ const AdminDashboard = () => {
             toast.promise(createPromise, {
                 loading: 'Registering user...',
                 success: 'User registered successfully!',
-                error: (err) => err.response?.data?.message || 'Error creating user'
+                error: (err) => {
+                    const msg = err.response?.data?.message || err.message || 'Error creating user';
+                    return msg;
+                }
             });
 
             await createPromise;
@@ -184,6 +237,37 @@ const AdminDashboard = () => {
             fetchData();
         } catch (error: any) {
             console.error(error);
+        }
+    };
+
+    const handleMarkBulkAttendance = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+
+            const promise = api.post('/api/attendance/bulk', {
+                userId: bulkData.userId,
+                startDate: bulkData.startDate,
+                endDate: bulkData.endDate,
+                status: bulkData.status,
+                remarks: bulkData.remarks
+            }, config);
+
+            toast.promise(promise, {
+                loading: 'Applying bulk attendance...',
+                success: (res) => res.data.message || 'Bulk attendance updated!',
+                error: (err) => err.response?.data?.message || 'Error marking bulk'
+            });
+
+            await promise;
+            setIsBulkModalOpen(false);
+            fetchData();
+        } catch (error: any) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -341,8 +425,10 @@ const AdminDashboard = () => {
             formData.append('beds', String(newRoom.beds));
             formData.append('capacity', String(newRoom.capacity));
             formData.append('size', newRoom.size);
-            if (roomFile) {
-                formData.append('image', roomFile);
+            if (roomFiles.length > 0) {
+                roomFiles.forEach(file => {
+                    formData.append('images', file);
+                });
             }
 
             const roomPromise = editingRoomId
@@ -357,7 +443,7 @@ const AdminDashboard = () => {
 
             await roomPromise;
             setNewRoom({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
-            setRoomFile(null);
+            setRoomFiles([]);
             setEditingRoomId(null);
             fetchData();
         } catch (error) {
@@ -372,7 +458,14 @@ const AdminDashboard = () => {
         try {
             const token = user?.token;
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            const approvePromise = api.post(`/api/auth/approve-user/${userId}`, {}, config);
+
+            // Send payment data during approval
+            const payload = {
+                totalAmount: Number(editFormData.totalAmount) || 0,
+                paidAmount: Number(editFormData.paidAmount) || 0
+            };
+
+            const approvePromise = api.post(`/api/auth/approve-user/${userId}`, payload, config);
 
             toast.promise(approvePromise, {
                 loading: 'Verifying student...',
@@ -381,6 +474,7 @@ const AdminDashboard = () => {
             });
 
             await approvePromise;
+            setIsUserModalOpen(false); // Close modal after approval
             fetchData();
         } catch (error) {
             console.error(error);
@@ -404,7 +498,53 @@ const AdminDashboard = () => {
             size: room.size || '100 sq ft'
         });
         setEditingRoomId(room._id);
+        setRoomFiles([]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleCreateFolder = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            await api.post('/api/notes/folder', {
+                name: newFolderName,
+                parentFolder: currentFolderId
+            }, config);
+
+            toast.success('Folder created!');
+            setNewFolderName('');
+            setIsCreateFolderOpen(false);
+            fetchData();
+        } catch (error) {
+            console.error(error);
+            toast.error('Error creating folder');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleDeleteFolder = (id: string) => {
+        // We can reuse the existing deleteConfirm logic or create a specific one
+        // Ideally we should warn about contents
+        setDeleteConfirm({ isOpen: true, type: 'folder' as any, id });
+    };
+
+    const handleNavigate = (folderId: string | null, folderName?: string) => {
+        setCurrentFolderId(folderId);
+
+        if (folderId === null) {
+            setBreadcrumbs([{ id: null, name: 'Home' }]);
+        } else {
+            // Check if we are going back in breadcrumbs
+            const existingIndex = breadcrumbs.findIndex(b => b.id === folderId);
+            if (existingIndex !== -1) {
+                setBreadcrumbs(breadcrumbs.slice(0, existingIndex + 1));
+            } else {
+                setBreadcrumbs([...breadcrumbs, { id: folderId, name: folderName || 'Folder' }]);
+            }
+        }
     };
 
     const handleCreateNote = async (e: React.FormEvent) => {
@@ -416,6 +556,9 @@ const AdminDashboard = () => {
         formData.append('title', noteTitle);
         formData.append('section', noteSection);
         formData.append('pdf', noteFile);
+        if (currentFolderId) {
+            formData.append('folderId', currentFolderId);
+        }
 
         try {
             const token = user?.token;
@@ -461,31 +604,84 @@ const AdminDashboard = () => {
         setDeleteConfirm({ isOpen: true, type: 'note', id });
     };
 
-    const confirmDelete = async () => {
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm.id || !deleteConfirm.type) return;
+
+        const token = user?.token;
+        const config = { headers: { Authorization: `Bearer ${token}` } };
         setIsLoading(true);
+
         try {
-            const token = user?.token;
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            let deleteUrl = '';
-            if (deleteConfirm.type === 'room') deleteUrl = `/api/rooms/${deleteConfirm.id}`;
-            else if (deleteConfirm.type === 'note') deleteUrl = `/api/notes/${deleteConfirm.id}`;
-            else if (deleteConfirm.type === 'user') deleteUrl = `/api/auth/users/${deleteConfirm.id}`;
+            let url = '';
+            if (deleteConfirm.type === 'room') url = `/api/rooms/${deleteConfirm.id}`;
+            else if (deleteConfirm.type === 'note') url = `/api/notes/${deleteConfirm.id}`;
+            else if (deleteConfirm.type === 'folder') url = `/api/notes/folder/${deleteConfirm.id}`;
+            else if (deleteConfirm.type === 'user') url = `/api/auth/users/${deleteConfirm.id}`;
+            else if (deleteConfirm.type === 'gallery') url = `/api/gallery/${deleteConfirm.id}`;
+            else if (deleteConfirm.type === 'event') url = `/api/events/${deleteConfirm.id}`;
 
-            const deletePromise = api.delete(deleteUrl, config);
-
-            toast.promise(deletePromise, {
-                loading: 'Deleting...',
-                success: 'Successfully deleted!',
-                error: 'Delete failed'
-            });
-
-            await deletePromise;
+            await api.delete(url, config);
+            toast.success(`${deleteConfirm.type.charAt(0).toUpperCase() + deleteConfirm.type.slice(1)} deleted!`);
             fetchData();
+            setDeleteConfirm({ isOpen: false, type: null, id: null });
         } catch (error) {
-            console.error('Delete error', error);
+            toast.error('Delete failed');
         } finally {
             setIsLoading(false);
-            setDeleteConfirm({ isOpen: false, type: null, id: null });
+        }
+    };
+
+    const handleSubmitGallery = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!galleryFile) {
+            toast.error('Please select an image');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('title', newGalleryItem.title);
+            formData.append('category', newGalleryItem.category);
+            formData.append('image', galleryFile);
+
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            await api.post('/api/gallery', formData, config);
+            toast.success('Gallery item added!');
+            setNewGalleryItem({ title: '', category: '' });
+            setGalleryFile(null);
+            fetchData();
+        } catch (error) {
+            toast.error('Add failed');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleSubmitEvent = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!eventFile) {
+            toast.error('Please select an image');
+            return;
+        }
+        setIsLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('title', newEvent.title);
+            formData.append('category', newEvent.category);
+            formData.append('image', eventFile);
+
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+            await api.post('/api/events', formData, config);
+            toast.success('Celebration image added!');
+            setNewEvent({ title: '', category: 'Celebration' });
+            setEventFile(null);
+            fetchData();
+        } catch (error) {
+            toast.error('Add failed');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -499,6 +695,7 @@ const AdminDashboard = () => {
             const payload = { ...editFormData };
             if (paymentUpdateAmount) {
                 payload.paymentUpdate = Number(paymentUpdateAmount);
+                payload.remarks = paymentRemarks;
             }
 
             const updatePromise = api.put(`/api/auth/users/${selectedUser._id}`, payload, config);
@@ -514,6 +711,7 @@ const AdminDashboard = () => {
             setSelectedUser({ ...selectedUser, ...data });
             setIsEditingUser(false);
             setPaymentUpdateAmount('');
+            setPaymentRemarks('');
         } catch (error: any) {
             console.error('Update error', error);
             if (error.response?.status === 401) {
@@ -525,7 +723,8 @@ const AdminDashboard = () => {
         }
     };
 
-    const startEditing = (user: any) => {
+    const openUserDetails = (user: any) => {
+        setSelectedUser(user);
         setEditFormData({
             name: user.name,
             email: user.email,
@@ -539,10 +738,19 @@ const AdminDashboard = () => {
             dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
             aadharNo: user.aadharNo,
             university: user.university,
-            registrationNo: user.registrationNo
+            registrationNo: user.registrationNo,
+            totalAmount: user.totalAmount || 0,
+            paidAmount: user.paidAmount || 0
         });
-        setIsEditingUser(true);
+        setIsUserModalOpen(true);
+        setIsEditingUser(false);
         setPaymentUpdateAmount('');
+        setPaymentRemarks('');
+        setShowPaymentHistory(false);
+    };
+
+    const startEditing = () => {
+        setIsEditingUser(true);
     };
 
     const downloadInvoice = async (userId: string) => {
@@ -560,16 +768,58 @@ const AdminDashboard = () => {
         }
     };
 
-    const handleDirectDownload = async (url: string, filename: string) => {
+    const handleDirectDownload = (url: string, filename: string) => {
         try {
-            const response = await api.get(url, { responseType: 'blob' });
-            saveAs(response.data, filename);
+            // Ensure URL has HTTPS protocol (like CA website)
+            let pdfUrl = url.replace(/^http:/, 'https:');
+            if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+                pdfUrl = `https://${pdfUrl}`;
+            }
+
+            // Use simple link download approach (like CA website) - works better with Cloudinary
+            const link = document.createElement('a');
+            link.href = pdfUrl;
+            link.download = filename;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
             toast.success('Download started!');
         } catch (error) {
             console.error('Download error:', error);
-            saveAs(url, filename);
+            toast.error('Failed to download PDF. Please try opening in a new tab.');
         }
     };
+
+    // Fetch PDF and create blob URL when preview opens (handles auth properly)
+    useEffect(() => {
+        if (pdfPreview.isOpen && pdfPreview.noteId && !pdfBlobUrl && !pdfLoading) {
+            setPdfLoading(true);
+            api.get(`/api/notes/proxy/${pdfPreview.noteId}`, {
+                responseType: 'blob'
+            })
+            .then((response) => {
+                const blob = new Blob([response.data], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+                setPdfBlobUrl(blobUrl);
+                setPdfLoading(false);
+            })
+            .catch((error) => {
+                console.error('Failed to load PDF:', error);
+                setPdfLoading(false);
+                toast.error('Failed to load PDF preview');
+            });
+        }
+
+        // Cleanup blob URL when modal closes
+        return () => {
+            if (!pdfPreview.isOpen && pdfBlobUrl) {
+                URL.revokeObjectURL(pdfBlobUrl);
+                setPdfBlobUrl(null);
+            }
+        };
+    }, [pdfPreview.isOpen, pdfPreview.noteId]);
 
     return (
         <>
@@ -643,13 +893,15 @@ const AdminDashboard = () => {
                             >
                                 <FileText className="w-4 h-4 mr-2" /> Notes
                             </Button>
-                            <Button
-                                variant={activeTab === 'attendance' ? 'default' : 'outline'}
-                                onClick={() => setActiveTab('attendance')}
-                                className={`rounded-full shadow-lg ${activeTab !== 'attendance' && 'bg-transparent text-white border-white/20 hover:bg-white/10 hover:text-white'}`}
-                            >
-                                <Calendar className="w-4 h-4 mr-2" /> Attendance
-                            </Button>
+                            <button onClick={() => setActiveTab('attendance')} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'attendance' ? 'bg-primary text-white shadow-lg' : 'hover:bg-muted font-medium'}`}>
+                                <Calendar className="w-4 h-4" /> Attendance
+                            </button>
+                            <button onClick={() => setActiveTab('gallery')} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'gallery' ? 'bg-primary text-white shadow-lg' : 'hover:bg-muted font-medium'}`}>
+                                <Maximize className="w-4 h-4" /> Gallery
+                            </button>
+                            <button onClick={() => setActiveTab('events')} className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'events' ? 'bg-primary text-white shadow-lg' : 'hover:bg-muted font-medium'}`}>
+                                <Bell className="w-4 h-4" /> Events
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -802,7 +1054,7 @@ const AdminDashboard = () => {
                                         <div className="space-y-4">
                                             {pendingUsers.map(u => (
                                                 <div key={u._id} className="flex flex-col md:flex-row justify-between items-center bg-orange-50/50 border border-orange-200 p-4 rounded-xl shadow-sm gap-4">
-                                                    <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => { setSelectedUser(u); setIsUserModalOpen(true); }}>
+                                                    <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => openUserDetails(u)}>
                                                         <div className="h-12 w-12 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
                                                             {u.photo ? <img src={u.photo} alt={u.name} className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-muted-foreground" />}
                                                         </div>
@@ -830,7 +1082,7 @@ const AdminDashboard = () => {
                                 <div className="space-y-4">
                                     {users.map(u => (
                                         <div key={u._id} className="flex flex-col md:flex-row justify-between items-center bg-card border border-border/50 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow gap-4">
-                                            <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => { setSelectedUser(u); setIsUserModalOpen(true); }}>
+                                            <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => openUserDetails(u)}>
                                                 <div className="h-12 w-12 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
                                                     {u.photo ? <img src={u.photo} alt={u.name} className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-muted-foreground" />}
                                                 </div>
@@ -899,9 +1151,31 @@ const AdminDashboard = () => {
                                     </div>
 
                                     <div className="space-y-2 md:col-span-2">
-                                        <label className="text-sm font-medium">Room Image</label>
-                                        <div className="flex flex-col sm:flex-row gap-4 items-center">
-                                            <Input type="file" accept="image/*" onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && setRoomFile(e.target.files[0])} className="rounded-lg bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4 hover:file:bg-primary/20" />
+                                        <label className="text-sm font-medium">Room Images (Upload up to 4)</label>
+                                        <div className="flex flex-col gap-4">
+                                            <Input
+                                                type="file"
+                                                accept="image/*"
+                                                multiple
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && setRoomFiles(Array.from(e.target.files))}
+                                                className="rounded-lg bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4 hover:file:bg-primary/20"
+                                            />
+                                            {roomFiles.length > 0 && (
+                                                <div className="flex gap-2 flex-wrap">
+                                                    {roomFiles.map((file, idx) => (
+                                                        <div key={idx} className="h-16 w-16 rounded-lg overflow-hidden border border-border relative group">
+                                                            <img src={URL.createObjectURL(file)} alt="Preview" className="w-full h-full object-cover" />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setRoomFiles(roomFiles.filter((_, i) => i !== idx))}
+                                                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                             <div className="flex gap-2 w-full sm:w-auto">
                                                 <Button type="submit" className="rounded-full shadow-lg flex-1 sm:flex-none" disabled={isLoading}>
                                                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -911,7 +1185,7 @@ const AdminDashboard = () => {
                                                     <Button variant="ghost" onClick={() => {
                                                         setEditingRoomId(null);
                                                         setNewRoom({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
-                                                        setRoomFile(null);
+                                                        setRoomFiles([]);
                                                     }} className="rounded-full">Cancel</Button>
                                                 )}
                                             </div>
@@ -956,78 +1230,230 @@ const AdminDashboard = () => {
                         )}
 
                         {activeTab === 'notes' && (
-                            <div className="animate-fade-in">
-                                <Button variant="ghost" className="mb-6 pl-0 hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={() => setActiveTab('users')}>
+                            <div className="animate-fade-in flex flex-col h-[calc(100vh-200px)] min-h-[600px]">
+                                <Button variant="ghost" className="mb-4 pl-0 w-fit hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={() => setActiveTab('users')}>
                                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Users
                                 </Button>
-                                <h2 className="text-2xl font-bold font-display text-primary mb-6">Manage Notes</h2>
 
-                                {/* Add Note Form */}
-                                <form onSubmit={handleCreateNote} className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8 bg-muted/30 p-6 rounded-2xl border border-border/50">
-                                    <Input placeholder="Title" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} className="rounded-lg bg-background" />
-                                    <Input placeholder="Section" value={noteSection} onChange={(e) => setNoteSection(e.target.value)} className="rounded-lg bg-background" />
-                                    <div className="flex gap-2 md:col-span-2">
-                                        <Input type="file" accept="application/pdf" onChange={(e) => e.target.files && setNoteFile(e.target.files[0])} className="rounded-lg bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4 hover:file:bg-primary/20" />
-                                        <Button type="submit" className="rounded-full shadow-lg" disabled={isLoading}>
-                                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : 'Add'}
+                                {/* Search and Toolbar */}
+                                <div className="flex flex-col md:flex-row justify-between items-center bg-muted/30 p-4 rounded-xl mb-6 gap-4 border border-border/50">
+                                    <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto scrollbar-hide">
+                                        <Button variant="ghost" size="sm" onClick={() => handleNavigate(null)} className={!currentFolderId ? "text-primary font-bold bg-primary/10" : "text-muted-foreground"}>
+                                            <Home className="w-4 h-4 mr-2" /> Home
+                                        </Button>
+                                        {breadcrumbs.slice(1).map((crumb, index) => (
+                                            <div key={crumb.id} className="flex items-center">
+                                                <span className="text-muted-foreground mx-1">/</span>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleNavigate(crumb.id, crumb.name)}
+                                                    className={index === breadcrumbs.length - 2 ? "text-primary font-bold bg-primary/10" : "text-muted-foreground"}
+                                                >
+                                                    {crumb.name}
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex items-center gap-2 w-full md:w-auto">
+                                        <div className="flex bg-background rounded-lg border border-border/50 p-1">
+                                            <Button size="icon" variant={viewMode === 'grid' ? 'default' : 'ghost'} className="h-8 w-8 rounded-md" onClick={() => setViewMode('grid')}>
+                                                <Grid className="w-4 h-4" />
+                                            </Button>
+                                            <Button size="icon" variant={viewMode === 'list' ? 'default' : 'ghost'} className="h-8 w-8 rounded-md" onClick={() => setViewMode('list')}>
+                                                <ListIcon className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+
+                                        <Button variant="outline" className="gap-2" onClick={() => setIsCreateFolderOpen(true)}>
+                                            <FolderPlus className="w-4 h-4" /> New Folder
                                         </Button>
                                     </div>
-                                </form>
+                                </div>
 
-                                <div className="space-y-3">
-                                    {notes.map(n => (
-                                        <div key={n._id} className="bg-card p-4 rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow group">
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-foreground">{n.title} <span className="text-xs font-normal text-muted-foreground ml-2 px-2 py-0.5 bg-muted rounded-full">{n.section}</span></span>
-                                                    <span className="text-xs text-muted-foreground mt-1">
-                                                        By: {n.uploadedBy?.name || 'Unknown'} <span className="mx-2">•</span> Status: {n.isApproved ? <span className="text-green-600 font-bold">Approved</span> : <span className="text-yellow-600 font-bold">Pending</span>}
-                                                    </span>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    {!n.isApproved && (
-                                                        <Button size="sm" variant="default" onClick={(e) => handleApproveNote(n._id, e)} className="rounded-full">
-                                                            Approve
+                                {/* Drag and Drop / Content Area */}
+                                <div className="flex-1 overflow-y-auto pr-2">
+
+                                    {/* Folders Section */}
+                                    {folders.length > 0 && (
+                                        <div className="mb-8">
+                                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider mb-4">Folders</h3>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                                                {folders.map(folder => (
+                                                    <div
+                                                        key={folder._id}
+                                                        className="group bg-card hover:bg-muted/50 border border-border/50 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all aspect-[4/3] relative"
+                                                        onClick={() => handleNavigate(folder._id, folder.name)}
+                                                        onContextMenu={(e) => {
+                                                            e.preventDefault();
+                                                            // Could add context menu logic here
+                                                        }}
+                                                    >
+                                                        <Folder className="w-12 h-12 text-primary/80 fill-primary/10 mb-2 group-hover:scale-110 transition-transform" />
+                                                        <span className="text-sm font-medium text-center truncate w-full px-2">{folder.name}</span>
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 h-6 w-6"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleDeleteFolder(folder._id);
+                                                            }}
+                                                        >
+                                                            <Trash2 className="w-3 h-3 text-destructive" />
                                                         </Button>
-                                                    )}
-                                                    {n.pdfUrl && (
-                                                        <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant={expandedNoteId === n._id ? 'default' : 'outline'}
-                                                                className="rounded-full"
-                                                                onClick={() => setExpandedNoteId(expandedNoteId === n._id ? null : n._id)}
-                                                            >
-                                                                <FileText className="w-4 h-4" />
-                                                            </Button>
-                                                            <Button size="sm" variant="outline" className="rounded-full" onClick={() => handleDirectDownload(n.pdfUrl, `${n.title}.pdf`)}>
-                                                                <Download className="w-4 h-4" />
-                                                            </Button>
-                                                        </>
-                                                    )}
-                                                    <Button size="sm" variant="destructive" onClick={() => handleDeleteNote(n._id)} className="rounded-full">
-                                                        <Trash2 className="w-4 h-4" />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Files Section */}
+                                    <div>
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Files</h3>
+
+                                            {/* File Upload Form - keeping it simple inline or could be modal */}
+                                            <form onSubmit={handleCreateNote} className="flex gap-2 items-center">
+                                                <Input
+                                                    placeholder="File Title"
+                                                    value={noteTitle}
+                                                    onChange={(e) => setNoteTitle(e.target.value)}
+                                                    className="w-32 md:w-48 bg-background h-9 text-sm"
+                                                    required
+                                                />
+                                                <Input
+                                                    placeholder="Section"
+                                                    value={noteSection}
+                                                    onChange={(e) => setNoteSection(e.target.value)}
+                                                    className="w-24 bg-background h-9 text-sm"
+                                                />
+                                                <div className="relative">
+                                                    <Input
+                                                        type="file"
+                                                        accept="application/pdf"
+                                                        id="file-upload"
+                                                        className="hidden"
+                                                        onChange={(e) => e.target.files && setNoteFile(e.target.files[0])}
+                                                    />
+                                                    <Button type="button" variant="outline" size="sm" className="h-9 gap-2" onClick={() => document.getElementById('file-upload')?.click()}>
+                                                        {noteFile ? (
+                                                            <span className="max-w-[100px] truncate">{noteFile.name}</span>
+                                                        ) : (
+                                                            <>
+                                                                <FileText className="w-4 h-4" /> Choose PDF
+                                                            </>
+                                                        )}
                                                     </Button>
                                                 </div>
+                                                <Button type="submit" size="sm" className="h-9" disabled={isLoading || !noteFile}>
+                                                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                                                </Button>
+                                            </form>
+                                        </div>
+
+                                        {notes.length === 0 && (
+                                            <div className="text-center py-20 border-2 border-dashed border-border/50 rounded-xl">
+                                                <p className="text-muted-foreground">No files in this folder.</p>
                                             </div>
-                                            {expandedNoteId === n._id && n.pdfUrl && (
-                                                <div className="mt-4 animate-fade-in border-t border-border/50 pt-4">
-                                                    <object
-                                                        data={n.pdfUrl}
-                                                        type="application/pdf"
-                                                        className="w-full h-[500px] rounded-lg border border-border bg-white"
-                                                    >
-                                                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-4 text-center">
-                                                            <p className="mb-2">Unable to display PDF inline.</p>
-                                                            <Button variant="outline" size="sm" onClick={() => window.open(n.pdfUrl, '_blank')} className="rounded-full">
-                                                                Open in New Tab
+                                        )}
+
+                                        {viewMode === 'grid' ? (
+                                            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                                {notes.map(n => (
+                                                    <div key={n._id} className="group bg-card border border-border/50 rounded-xl p-4 flex flex-col relative hover:shadow-md transition-all">
+                                                        <div className="aspect-[3/4] bg-muted/30 rounded-lg mb-3 flex items-center justify-center relative overflow-hidden group/preview pointer-events-none">
+                                                            <FileText className="w-16 h-16 text-muted-foreground/30" />
+                                                            {/* Preview Overlay */}
+                                                            <div className="absolute inset-0 bg-black/5 flex items-center justify-center opacity-0"></div>
+                                                        </div>
+
+                                                        <div className="flex justify-between items-start gap-2">
+                                                            <div className="min-w-0">
+                                                                <p className="font-medium text-sm truncate" title={n.title}>{n.title}</p>
+                                                                <p className="text-xs text-muted-foreground truncate">{n.section}</p>
+                                                            </div>
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-6 w-6 -mr-1"
+                                                                onClick={(e) => {
+                                                                    setExpandedNoteId(expandedNoteId === n._id ? null : n._id);
+                                                                }}
+                                                            >
+                                                                <MoreVertical className="w-4 h-4" />
                                                             </Button>
                                                         </div>
-                                                    </object>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+
+                                                        {/* Simple Action Menu (replace generic MoreVertical if needed) */}
+                                                        {expandedNoteId === n._id && (
+                                                            <div className="absolute right-2 top-10 bg-popover border border-border shadow-md rounded-lg p-1 z-10 flex flex-col gap-1 w-32 animate-in fade-in zoom-in-95 duration-200">
+                                                                <button className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted rounded-md w-full text-left" onClick={() => {
+                                                                    setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n._id });
+                                                                    setExpandedNoteId(null);
+                                                                }}>
+                                                                    <Maximize className="w-3 h-3" /> Preview
+                                                                </button>
+                                                                <button className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted rounded-md w-full text-left" onClick={() => {
+                                                                    handleDirectDownload(n.pdfUrl, `${n.title}.pdf`);
+                                                                    setExpandedNoteId(null);
+                                                                }}>
+                                                                    <Download className="w-3 h-3" /> Download
+                                                                </button>
+                                                                {!n.isApproved && (
+                                                                    <button className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted text-green-600 rounded-md w-full text-left" onClick={(e) => {
+                                                                        handleApproveNote(n._id, e as any);
+                                                                        setExpandedNoteId(null);
+                                                                    }}>
+                                                                        <Check className="w-3 h-3" /> Approve
+                                                                    </button>
+                                                                )}
+                                                                <button className="flex items-center gap-2 px-2 py-1.5 text-xs hover:bg-muted text-red-600 rounded-md w-full text-left" onClick={() => {
+                                                                    handleDeleteNote(n._id);
+                                                                    setExpandedNoteId(null);
+                                                                }}>
+                                                                    <Trash2 className="w-3 h-3" /> Delete
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {notes.map(n => (
+                                                    <div key={n._id} className="flex items-center justify-between p-3 bg-card border border-border/50 rounded-lg hover:shadow-sm">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="h-10 w-10 bg-secondary/20 rounded-lg flex items-center justify-center text-secondary">
+                                                                <FileText className="w-6 h-6" />
+                                                            </div>
+                                                            <div>
+                                                                <p className="font-medium text-sm">{n.title}</p>
+                                                                <div className="flex gap-2 text-xs text-muted-foreground">
+                                                                    <span>{n.section}</span>
+                                                                    <span>•</span>
+                                                                    <span>{new Date(n.createdAt).toLocaleDateString()}</span>
+                                                                    {!n.isApproved && <span className="text-amber-500 font-bold">• Pending</span>}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n._id })}>
+                                                                <Maximize className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => handleDirectDownload(n.pdfUrl, `${n.title}.pdf`)}>
+                                                                <Download className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDeleteNote(n._id)}>
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         )}
@@ -1060,60 +1486,70 @@ const AdminDashboard = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-border/30">
-                                            {users.filter(u => u.role === 'user' && u.isVerified).map((student) => {
-                                                const record = attendanceRecords.find(r => r.user?._id === student._id);
+                                            {attendanceRecords.map((record) => {
+                                                const student = record.user;
                                                 return (
                                                     <tr key={student._id} className="hover:bg-muted/10 transition-colors">
                                                         <td className="px-4 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden">
+                                                            <div
+                                                                className="flex items-center gap-3 cursor-pointer group"
+                                                                onClick={() => openUserDetails(student)}
+                                                            >
+                                                                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden group-hover:ring-2 ring-primary transition-all">
                                                                     {student.photo ? (
                                                                         <img src={student.photo} alt={student.name} className="w-full h-full object-cover" />
                                                                     ) : (
                                                                         <User className="w-4 h-4 text-primary" />
                                                                     )}
                                                                 </div>
-                                                                <span className="font-medium text-foreground">{student.name}</span>
+                                                                <span className="font-medium text-foreground group-hover:text-primary transition-colors">{student.name}</span>
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-4 text-muted-foreground">{student.phone}</td>
                                                         <td className="px-4 py-4 text-center">
-                                                            {record ? (
-                                                                <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${record.status === 'Present' ? 'bg-green-100 text-green-600 border border-green-200' :
-                                                                    record.status === 'Absent' ? 'bg-red-100 text-red-600 border border-red-200' :
-                                                                        'bg-amber-100 text-amber-600 border border-amber-200'
-                                                                    }`}>
-                                                                    {record.status}
-                                                                </span>
-                                                            ) : (
-                                                                <span className="text-muted-foreground text-[10px] font-medium italic opacity-50">Not Marked</span>
-                                                            )}
+                                                            <span className={`inline-flex px-3 py-1 rounded-full text-[10px] font-bold uppercase transition-all ${record.status === 'Present' ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' :
+                                                                record.status === 'Absent' ? 'bg-rose-100 text-rose-600 border border-rose-200' :
+                                                                    'bg-amber-100 text-amber-600 border border-amber-200'
+                                                                }`}>
+                                                                {record.status}
+                                                            </span>
                                                         </td>
                                                         <td className="px-4 py-4">
                                                             <div className="flex gap-2">
                                                                 <Button
+                                                                    variant={record.status === 'Present' ? "default" : "outline"}
                                                                     size="sm"
-                                                                    variant={record?.status === 'Present' ? 'default' : 'outline'}
-                                                                    className="rounded-full h-8 w-8 p-0"
+                                                                    className={cn("h-8 px-3 rounded-full text-[10px] font-bold", record.status === 'Present' && "bg-emerald-600 hover:bg-emerald-700")}
                                                                     onClick={() => handleMarkAttendance(student._id, 'Present')}
                                                                 >
-                                                                    <Check className="w-4 h-4" />
+                                                                    {record.status === 'Present' && <Check className="w-3 h-3 mr-1" />}
+                                                                    Present
                                                                 </Button>
                                                                 <Button
+                                                                    variant={record.status === 'Absent' ? "destructive" : "outline"}
                                                                     size="sm"
-                                                                    variant={record?.status === 'Absent' ? 'destructive' : 'outline'}
-                                                                    className="rounded-full h-8 w-8 p-0"
+                                                                    className="h-8 px-3 rounded-full text-[10px] font-bold"
                                                                     onClick={() => handleMarkAttendance(student._id, 'Absent')}
                                                                 >
-                                                                    <X className="w-4 h-4" />
+                                                                    {record.status === 'Absent' && <X className="w-3 h-3 mr-1" />}
+                                                                    Absent
                                                                 </Button>
                                                                 <Button
+                                                                    variant="outline"
                                                                     size="sm"
-                                                                    variant={record?.status === 'Leave' ? 'secondary' : 'outline'}
-                                                                    className="rounded-full h-8 w-8 p-0"
-                                                                    onClick={() => handleMarkAttendance(student._id, 'Leave')}
+                                                                    className="h-8 px-3 rounded-full text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/5"
+                                                                    onClick={() => {
+                                                                        setBulkData({
+                                                                            ...bulkData,
+                                                                            userId: student._id,
+                                                                            userName: student.name,
+                                                                            startDate: attendanceDate
+                                                                        });
+                                                                        setIsBulkModalOpen(true);
+                                                                    }}
                                                                 >
-                                                                    <Bell className="w-4 h-4" />
+                                                                    <Calendar className="w-3 h-3 mr-1" />
+                                                                    Date Range
                                                                 </Button>
                                                             </div>
                                                         </td>
@@ -1122,6 +1558,121 @@ const AdminDashboard = () => {
                                             })}
                                         </tbody>
                                     </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'gallery' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h2 className="text-2xl font-bold font-display text-primary">Gallery Management</h2>
+                                </div>
+                                <form onSubmit={handleSubmitGallery} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 bg-muted/30 p-8 rounded-2xl border border-border/50 shadow-sm">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground/80 font-display">Image Title</label>
+                                        <Input required value={newGalleryItem.title} onChange={(e) => setNewGalleryItem({ ...newGalleryItem, title: e.target.value })} placeholder="Common Area" className="rounded-xl border-border/50 bg-background" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground/80 font-display">Category</label>
+                                        <Input value={newGalleryItem.category} onChange={(e) => setNewGalleryItem({ ...newGalleryItem, category: e.target.value })} placeholder="Living Room" className="rounded-xl border-border/50 bg-background" />
+                                    </div>
+                                    <div className="space-y-2 md:col-span-2">
+                                        <label className="text-sm font-medium text-foreground/80 font-display">Upload Photo</label>
+                                        <Input required type="file" accept="image/*" onChange={(e) => e.target.files && setGalleryFile(e.target.files[0])} className="rounded-xl border-border/50 bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4" />
+                                    </div>
+                                    <Button type="submit" disabled={isLoading} className="md:col-span-2 h-12 rounded-xl text-lg font-bold shadow-lg hover:shadow-primary/25 transition-all">
+                                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Maximize className="w-5 h-5 mr-2" />}
+                                        Upload Photo to Gallery
+                                    </Button>
+                                </form>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {gallery.map((item) => (
+                                        <div key={item._id} className="group relative bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all aspect-square">
+                                            <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
+                                                <p className="text-white font-bold truncate text-sm">{item.title}</p>
+                                                <p className="text-white/60 text-[10px] uppercase tracking-wider">{item.category}</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDeleteConfirm({ isOpen: true, type: 'gallery', id: item._id })}
+                                                className="absolute top-4 right-4 bg-red-600/90 hover:bg-red-600 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all shadow-lg"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {gallery.length === 0 && (
+                                        <div className="col-span-full py-20 text-center border-2 border-dashed border-border/50 rounded-3xl">
+                                            <Maximize className="w-12 h-12 text-muted-foreground m-auto mb-4 opacity-20" />
+                                            <p className="text-muted-foreground">No gallery images uploaded yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'events' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h2 className="text-2xl font-bold font-display text-primary">Events Management</h2>
+                                </div>
+                                <form onSubmit={handleSubmitEvent} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12 bg-muted/30 p-8 rounded-2xl border border-border/50 shadow-sm">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground/80 font-display">Celebration Title</label>
+                                        <Input required value={newEvent.title} onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="New Year Party 2024" className="rounded-xl border-border/50 bg-background" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium text-foreground/80 font-display">Upload Image</label>
+                                        <Input required type="file" accept="image/*" onChange={(e) => e.target.files && setEventFile(e.target.files[0])} className="rounded-xl border-border/50 bg-background file:rounded-full file:border-0 file:bg-primary/10 file:text-primary file:mr-4" />
+                                    </div>
+                                    <Button type="submit" disabled={isLoading} className="md:col-span-2 h-12 rounded-xl text-lg font-bold shadow-lg hover:shadow-primary/25 transition-all">
+                                        {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Maximize className="w-5 h-5 mr-2" />}
+                                        Upload Celebration Image
+                                    </Button>
+                                </form>
+
+                                <div className="space-y-6">
+                                    {events.map((event) => (
+                                        <div key={event._id} className="flex flex-col md:flex-row gap-6 bg-card p-6 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
+                                            {event.image && (
+                                                <div className="w-full md:w-60 h-40 rounded-xl overflow-hidden shadow-inner flex-shrink-0">
+                                                    <img src={event.image} alt={event.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                                </div>
+                                            )}
+                                            <div className="flex-1 flex flex-col justify-between py-1">
+                                                <div>
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <h3 className="text-xl font-bold text-foreground font-display">{event.title}</h3>
+                                                        {event.date && (
+                                                            <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-bold ring-1 ring-primary/20">
+                                                                {new Date(event.date).toLocaleDateString()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    {event.description && <p className="text-muted-foreground text-sm line-clamp-3 leading-relaxed">{event.description}</p>}
+                                                </div>
+                                                <div className="mt-6 flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => setDeleteConfirm({ isOpen: true, type: 'event', id: event._id })}
+                                                        className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full h-10 px-4 bg-muted/20"
+                                                    >
+                                                        <Trash2 className="w-4 h-4 mr-2" /> Delete Event
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {events.length === 0 && (
+                                        <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl">
+                                            <Bell className="w-12 h-12 text-muted-foreground m-auto mb-4 opacity-20" />
+                                            <p className="text-muted-foreground">No events created yet.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -1137,7 +1688,9 @@ const AdminDashboard = () => {
             >
                 <div className="space-y-4">
                     <p className="text-muted-foreground">
-                        Are you sure you want to delete this {deleteConfirm.type}? This action cannot be undone.
+                        Are you sure you want to delete this {deleteConfirm.type}?
+                        {deleteConfirm.type === 'folder' && " All contents inside will be deleted as well."}
+                        This action cannot be undone.
                     </p>
                     <div className="flex justify-end gap-3">
                         <Button
@@ -1149,10 +1702,10 @@ const AdminDashboard = () => {
                         </Button>
                         <Button
                             variant="destructive"
-                            onClick={confirmDelete}
+                            onClick={handleConfirmDelete}
                             className="rounded-full"
                         >
-                            Delete {deleteConfirm.type === 'room' ? 'Room' : deleteConfirm.type === 'note' ? 'Note' : 'User'}
+                            Delete {deleteConfirm.type === 'room' ? 'Room' : deleteConfirm.type === 'note' ? 'Note' : deleteConfirm.type === 'user' ? 'User' : deleteConfirm.type === 'gallery' ? 'Gallery Item' : deleteConfirm.type === 'folder' ? 'Folder' : 'Event'}
                         </Button>
                     </div>
                 </div>
@@ -1174,6 +1727,132 @@ const AdminDashboard = () => {
                 </div>
             </Modal>
 
+            {/* PDF Preview Modal */}
+            <Modal
+                isOpen={pdfPreview.isOpen}
+                onClose={() => {
+                    setPdfPreview({ isOpen: false, url: null, title: null, noteId: null });
+                    // Clean up blob URL
+                    if (pdfBlobUrl) {
+                        URL.revokeObjectURL(pdfBlobUrl);
+                        setPdfBlobUrl(null);
+                    }
+                }}
+                title={pdfPreview.title || "PDF Preview"}
+                className="max-w-5xl h-[90vh]"
+            >
+                <div className="flex flex-col h-full">
+                    {pdfPreview.url && (() => {
+                        // Ensure URL has HTTPS protocol
+                        let pdfUrl = pdfPreview.url.replace(/^http:/, 'https:');
+                        if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+                            pdfUrl = `https://${pdfUrl}`;
+                        }
+                        
+                        // Use Google Docs Viewer for "Open in New Tab" (like CA website)
+                        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+                        
+                        
+                        return (
+                            <div className="flex flex-col h-full">
+                                {/* Action Buttons */}
+                                <div className="flex gap-2 p-4 border-b border-border/50">
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={async () => {
+                                            // Use proxy API for download with auth
+                                            if (pdfPreview.noteId) {
+                                                try {
+                                                    const response = await api.get(`/api/notes/proxy/${pdfPreview.noteId}`, {
+                                                        responseType: 'blob'
+                                                    });
+                                                    const blob = new Blob([response.data], { type: 'application/pdf' });
+                                                    const blobUrl = URL.createObjectURL(blob);
+                                                    const link = document.createElement('a');
+                                                    link.href = blobUrl;
+                                                    link.download = `${pdfPreview.title || 'document'}.pdf`;
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                    URL.revokeObjectURL(blobUrl);
+                                                    toast.success('Download started!');
+                                                } catch (error) {
+                                                    console.error('Download error:', error);
+                                                    toast.error('Failed to download PDF');
+                                                }
+                                            } else {
+                                                handleDirectDownload(pdfUrl, `${pdfPreview.title || 'document'}.pdf`);
+                                            }
+                                        }}
+                                    >
+                                        <Download className="w-4 h-4 mr-2" /> Download PDF
+                                    </Button>
+                                    <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => window.open(googleViewerUrl, '_blank')}
+                                    >
+                                        Open in New Tab
+                                    </Button>
+                                </div>
+
+                                {/* PDF Preview using blob URL or Google Docs Viewer */}
+                                <div className="flex-1 border rounded-lg overflow-hidden bg-gray-100 relative" style={{ minHeight: '600px' }}>
+                                    {pdfLoading ? (
+                                        <div className="flex items-center justify-center h-full">
+                                            <div className="text-center">
+                                                <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-2" />
+                                                <p className="text-muted-foreground">Loading PDF...</p>
+                                            </div>
+                                        </div>
+                                    ) : pdfBlobUrl ? (
+                                        <iframe
+                                            src={pdfBlobUrl}
+                                            title={pdfPreview.title || "PDF Preview"}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            className="w-full h-full"
+                                        />
+                                    ) : (
+                                        <iframe
+                                            src={googleViewerUrl}
+                                            title={pdfPreview.title || "PDF Preview"}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            className="w-full h-full"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
+            </Modal>
+
+            {/* Create Folder Modal */}
+            <Modal
+                isOpen={isCreateFolderOpen}
+                onClose={() => setIsCreateFolderOpen(false)}
+                title="Create New Folder"
+            >
+                <form onSubmit={handleCreateFolder} className="space-y-4">
+                    <Input
+                        placeholder="Folder Name"
+                        value={newFolderName}
+                        onChange={(e) => setNewFolderName(e.target.value)}
+                        autoFocus
+                        required
+                    />
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="ghost" onClick={() => setIsCreateFolderOpen(false)}>Cancel</Button>
+                        <Button type="submit" disabled={isLoading}>Create</Button>
+                    </div>
+                </form>
+            </Modal>
+
             {/* User Details Modal */}
             <Modal
                 isOpen={isUserModalOpen}
@@ -1185,7 +1864,7 @@ const AdminDashboard = () => {
                         {!isEditingUser ? (
                             <>
                                 <div className="flex flex-col items-center border-b border-border/50 pb-6 relative">
-                                    <Button variant="ghost" size="sm" className="absolute right-0 top-0 rounded-full" onClick={() => startEditing(selectedUser)}>
+                                    <Button variant="ghost" size="sm" className="absolute right-0 top-0 rounded-full" onClick={() => startEditing()}>
                                         <Edit3 className="w-4 h-4 mr-2" /> Edit
                                     </Button>
                                     <div className="h-24 w-24 rounded-full overflow-hidden bg-muted mb-4 border-2 border-primary/20">
@@ -1236,6 +1915,11 @@ const AdminDashboard = () => {
                                 </div>
 
                                 <div className="border-t border-border/50 pt-4">
+                                    <h4 className="font-bold text-sm mb-4 uppercase tracking-wider text-muted-foreground">Attendance History</h4>
+                                    <AttendanceCalendar userId={selectedUser._id} token={user?.token || ''} className="border-none shadow-none bg-muted/20" />
+                                </div>
+
+                                <div className="border-t border-border/50 pt-4">
                                     <Button variant="outline" onClick={() => handlePrintForm(selectedUser)} className="w-full rounded-full">
                                         <Printer className="w-4 h-4 mr-2" /> Print Application Form
                                     </Button>
@@ -1255,6 +1939,79 @@ const AdminDashboard = () => {
                                     <div className="border-t border-border/50 pt-4">
                                         <h4 className="font-bold text-sm mb-3 uppercase tracking-wider text-muted-foreground">Academic</h4>
                                         <p className="text-sm">{selectedUser.university} <span className="text-muted-foreground">({selectedUser.registrationNo})</span></p>
+                                    </div>
+                                )}
+
+                                {selectedUser.isPendingApproval && (
+                                    <div className="border-t border-border/50 pt-6 mt-6 bg-orange-50/50 -mx-6 px-6 pb-6 rounded-b-2xl">
+                                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wider text-orange-700 flex items-center gap-2">
+                                            <CheckCircle className="w-4 h-4" /> Final Approval
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4 mb-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Total Fee Assigned</label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Enter total amount"
+                                                    value={editFormData.totalAmount}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, totalAmount: e.target.value })}
+                                                    className="bg-white"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-medium text-muted-foreground">Initial Payment</label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="Enter paid amount"
+                                                    value={editFormData.paidAmount}
+                                                    onChange={(e) => setEditFormData({ ...editFormData, paidAmount: e.target.value })}
+                                                    className="bg-white"
+                                                />
+                                            </div>
+                                        </div>
+                                        <Button
+                                            onClick={() => handleApproveUser(selectedUser._id)}
+                                            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-6 rounded-xl shadow-lg transition-all"
+                                            disabled={isLoading}
+                                        >
+                                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-5 h-5 mr-2" />}
+                                            Confirm & Approve Student
+                                        </Button>
+                                        <p className="text-[10px] text-center text-muted-foreground mt-3 italic">
+                                            Setting these values will verify the student and generate their initial balance.
+                                        </p>
+                                    </div>
+                                )}
+
+                                {selectedUser.paymentHistory && selectedUser.paymentHistory.length > 0 && (
+                                    <div className="border-t border-border/50 pt-6 mt-6">
+                                        <button
+                                            onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+                                            className="w-full flex justify-between items-center group hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                                        >
+                                            <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                                                <FileText className="w-4 h-4" />
+                                                Payment History
+                                                <span className="bg-muted px-2 py-0.5 rounded-full text-[10px] ml-1">{selectedUser.paymentHistory.length}</span>
+                                            </h4>
+                                            {showPaymentHistory ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                        </button>
+
+                                        {showPaymentHistory && (
+                                            <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 mt-4 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-300">
+                                                {[...selectedUser.paymentHistory].reverse().map((payment: any, idx: number) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/30">
+                                                        <div>
+                                                            <p className="font-bold text-sm text-foreground">₹{payment.amount}</p>
+                                                            <p className="text-[10px] text-muted-foreground">{new Date(payment.date).toLocaleDateString()} {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className="text-[11px] font-medium text-primary bg-primary/5 px-2 py-0.5 rounded-full">{payment.remarks || 'Payment recorded'}</p>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </>
@@ -1285,6 +2042,14 @@ const AdminDashboard = () => {
                                         <label className="text-xs font-medium">DOB</label>
                                         <Input type="date" value={editFormData.dob} onChange={(e) => setEditFormData({ ...editFormData, dob: e.target.value })} className="h-9" />
                                     </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium">Total Amount</label>
+                                        <Input type="number" value={editFormData.totalAmount} onChange={(e) => setEditFormData({ ...editFormData, totalAmount: e.target.value })} className="h-9" />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-medium">Paid Amount (Direct Set)</label>
+                                        <Input type="number" value={editFormData.paidAmount} onChange={(e) => setEditFormData({ ...editFormData, paidAmount: e.target.value })} className="h-9" />
+                                    </div>
                                 </div>
 
                                 <div className="space-y-2 border-t border-border/50 pt-4">
@@ -1298,13 +2063,19 @@ const AdminDashboard = () => {
                                             <span>Current Due:</span>
                                             <span className="font-bold text-red-600">₹{selectedUser.remainingAmount}</span>
                                         </div>
-                                        <div className="flex gap-2 items-center">
+                                        <div className="flex flex-col gap-2">
                                             <Input
                                                 type="number"
                                                 placeholder="Add Amount (e.g. 5000)"
                                                 value={paymentUpdateAmount}
                                                 onChange={(e) => setPaymentUpdateAmount(e.target.value)}
                                                 className="bg-background"
+                                            />
+                                            <Input
+                                                placeholder="Remarks (e.g. Jan Rent, UPI, Cash)"
+                                                value={paymentRemarks}
+                                                onChange={(e) => setPaymentRemarks(e.target.value)}
+                                                className="bg-background text-sm"
                                             />
                                         </div>
                                         <p className="text-xs text-muted-foreground">* This amount will be added to the current paid amount.</p>
@@ -1360,6 +2131,84 @@ const AdminDashboard = () => {
                         {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                         Create Admin
                     </Button>
+                </form>
+            </Modal>
+
+            {/* Bulk Attendance Modal */}
+            <Modal
+                isOpen={isBulkModalOpen}
+                onClose={() => setIsBulkModalOpen(false)}
+                title={`Bulk Attendance: ${bulkData.userName}`}
+            >
+                <form onSubmit={handleMarkBulkAttendance} className="space-y-6">
+                    <div className="bg-primary/5 p-4 rounded-xl border border-primary/10">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-1">Student</p>
+                        <p className="font-display font-bold text-lg">{bulkData.userName}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Start Date</label>
+                            <Input
+                                type="date"
+                                value={bulkData.startDate}
+                                onChange={(e) => setBulkData({ ...bulkData, startDate: e.target.value })}
+                                required
+                                className="rounded-xl"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">End Date</label>
+                            <Input
+                                type="date"
+                                value={bulkData.endDate}
+                                onChange={(e) => setBulkData({ ...bulkData, endDate: e.target.value })}
+                                required
+                                className="rounded-xl"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium">Status</label>
+                        <div className="flex gap-3">
+                            {['Absent', 'Leave'].map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setBulkData({ ...bulkData, status: s })}
+                                    className={cn(
+                                        "flex-1 py-3 px-4 rounded-xl text-sm font-bold transition-all border-2",
+                                        bulkData.status === s
+                                            ? "bg-primary border-primary text-white shadow-lg"
+                                            : "bg-background border-border text-muted-foreground hover:border-primary/50"
+                                    )}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground/80 font-display">Remarks / Reason</label>
+                        <Input
+                            placeholder="Home Visit, Sick Leave, etc."
+                            value={bulkData.remarks}
+                            onChange={(e) => setBulkData({ ...bulkData, remarks: e.target.value })}
+                            className="rounded-xl bg-background"
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={() => setIsBulkModalOpen(false)} className="flex-1 rounded-xl h-12 font-bold">
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={isLoading} className="flex-1 rounded-xl h-12 font-bold shadow-lg">
+                            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Check className="w-4 h-4 mr-2" />}
+                            Apply Range
+                        </Button>
+                    </div>
                 </form>
             </Modal>
             {/* Change Password Modal */}
