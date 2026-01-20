@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import axios from 'axios';
+import { saveAs } from 'file-saver';
 import api from '../../api/axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -799,17 +799,17 @@ const AdminDashboard = () => {
             api.get(`/api/notes/proxy/${pdfPreview.noteId}`, {
                 responseType: 'blob'
             })
-            .then((response) => {
-                const blob = new Blob([response.data], { type: 'application/pdf' });
-                const blobUrl = URL.createObjectURL(blob);
-                setPdfBlobUrl(blobUrl);
-                setPdfLoading(false);
-            })
-            .catch((error) => {
-                console.error('Failed to load PDF:', error);
-                setPdfLoading(false);
-                toast.error('Failed to load PDF preview');
-            });
+                .then((response) => {
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    setPdfBlobUrl(blobUrl);
+                    setPdfLoading(false);
+                })
+                .catch((error) => {
+                    console.error('Failed to load PDF:', error);
+                    setPdfLoading(false);
+                    toast.error('Failed to load PDF preview');
+                });
         }
 
         // Cleanup blob URL when modal closes
@@ -1378,7 +1378,7 @@ const AdminDashboard = () => {
                                                                 size="icon"
                                                                 variant="ghost"
                                                                 className="h-6 w-6 -mr-1"
-                                                                onClick={(e) => {
+                                                                onClick={() => {
                                                                     setExpandedNoteId(expandedNoteId === n._id ? null : n._id);
                                                                 }}
                                                             >
@@ -1748,17 +1748,17 @@ const AdminDashboard = () => {
                         if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
                             pdfUrl = `https://${pdfUrl}`;
                         }
-                        
+
                         // Use Google Docs Viewer for "Open in New Tab" (like CA website)
                         const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
-                        
-                        
+
+
                         return (
                             <div className="flex flex-col h-full">
                                 {/* Action Buttons */}
                                 <div className="flex gap-2 p-4 border-b border-border/50">
-                                    <Button 
-                                        variant="outline" 
+                                    <Button
+                                        variant="outline"
                                         size="sm"
                                         onClick={async () => {
                                             // Use proxy API for download with auth
@@ -1788,8 +1788,8 @@ const AdminDashboard = () => {
                                     >
                                         <Download className="w-4 h-4 mr-2" /> Download PDF
                                     </Button>
-                                    <Button 
-                                        variant="outline" 
+                                    <Button
+                                        variant="outline"
                                         size="sm"
                                         onClick={() => window.open(googleViewerUrl, '_blank')}
                                     >

@@ -1,10 +1,10 @@
 {
   "scripts": {
-    "start": "cd server && node server.js",
-    "server": "cd server && npm run dev",
-    "client": "cd client && npm run dev",
-    "build": "npm install --include=dev --legacy-peer-deps && cd client && npm install --include=dev --legacy-peer-deps && npm run build && cd ../server && npm install",
-    "heroku-postbuild": "npm install --prefix client && npm run build --prefix client"
+    "start": "NODE_ENV=production node server/server.js",
+    "build": "npm run install-all && npm run build --prefix client",
+    "install-all": "npm install && npm install --prefix server && npm install --prefix client",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client"
   },
   "dependencies": {}
 }

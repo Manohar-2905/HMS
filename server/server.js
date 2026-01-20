@@ -1,22 +1,45 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const helmet = require('helmet');
 const connectDB = require('./config/db');
 const path = require('path');
 
 dotenv.config();
 
-console.log('--- Email Config Check ---');
-console.log('EMAIL_USER:', process.env.EMAIL_USER);
-console.log('SMTP_HOST:', process.env.SMTP_HOST);
-console.log('EMAIL_SERVICE_MODE:', process.env.EMAIL_SERVICE_MODE);
-console.log('---------------------------');
-
 const app = express();
+
+// Security Headers
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+            "img-src": ["'self'", "data:", "https:", "http:"],
+            "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+        },
+    },
+}));
 
 // Middleware
 app.use(express.json());
-app.use(cors());
+
+// Enhanced CORS
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5000',
+    process.env.CLIENT_URL, // e.g. https://your-app.onrender.com
+].filter(Boolean);
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 
 // Database Connection
 connectDB();
