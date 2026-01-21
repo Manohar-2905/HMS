@@ -23,22 +23,31 @@ app.use(helmet({
 // Middleware
 app.use(express.json());
 
-// Enhanced CORS
+// CORS Configuration
 const allowedOrigins = [
     'http://localhost:5173',
     'http://localhost:5000',
-    process.env.CLIENT_URL, // e.g. https://your-app.onrender.com
+    process.env.CLIENT_URL,
 ].filter(Boolean);
 
 app.use(cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) return callback(null, true);
+
+        const isAllowed = allowedOrigins.indexOf(origin) !== -1 ||
+            origin.endsWith('.onrender.com');
+
+        if (isAllowed) {
             callback(null, true);
         } else {
+            console.warn(`CORS blocked for origin: ${origin}`);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Database Connection
