@@ -1,10 +1,11 @@
 {
   "scripts": {
-    "start": "NODE_ENV=production node server/server.js",
+    "start": "cd server && node server.js",
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
     "build": "npm run install-all && npm run build --prefix client",
     "install-all": "npm install --legacy-peer-deps && npm install --prefix server --legacy-peer-deps && npm install --prefix client --legacy-peer-deps",
-    "server": "npm run dev --prefix server",
-    "client": "npm run dev --prefix client"
+    "render-build": "npm install && cd client && npm install && npm run build && cd ../server && npm install"
   },
   "dependencies": {}
 }

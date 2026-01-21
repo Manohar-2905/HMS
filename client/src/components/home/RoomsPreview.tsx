@@ -78,6 +78,11 @@ export function RoomsPreview() {
                                         <Eye className="w-5 h-5 text-white" />
                                     </div>
                                 </div>
+                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
+                                        <Eye className="w-5 h-5 text-white" />
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Content */}
