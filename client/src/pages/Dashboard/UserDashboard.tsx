@@ -31,8 +31,13 @@ interface Note {
 }
 
 const UserDashboard = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, refreshUser } = useAuth();
     const navigate = useNavigate();
+
+    // Refresh user data on mount to get latest payment/profile logic
+    useEffect(() => {
+        refreshUser();
+    }, []);
     const [notes, setNotes] = useState<Note[]>([]);
     const [noteTitle, setNoteTitle] = useState('');
     const [noteSection, setNoteSection] = useState('');

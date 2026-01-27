@@ -1408,6 +1408,17 @@ const AdminDashboard = () => {
                                                                     Absent
                                                                 </Button>
                                                                 <Button
+                                                                    variant={record.status === 'Leave' ? "default" : "outline"}
+                                                                    size="sm"
+                                                                    className={cn(
+                                                                        "h-8 px-3 rounded-full text-[10px] font-bold",
+                                                                        record.status === 'Leave' ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:bg-amber-50 border-amber-200"
+                                                                    )}
+                                                                    onClick={() => handleMarkAttendance(student._id, 'Leave')}
+                                                                >
+                                                                    Leave
+                                                                </Button>
+                                                                <Button
                                                                     variant="outline"
                                                                     size="sm"
                                                                     className="h-8 px-3 rounded-full text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/5"

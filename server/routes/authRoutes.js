@@ -13,7 +13,8 @@ const {
     initiateChangePassword,
     completeChangePassword,
     deleteUser,
-    updateUser
+    updateUser,
+    getUserProfile
 } = require('../controllers/authController');
 const { protect, admin } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -31,5 +32,6 @@ router.post('/verify-otp', verifyOtp);
 router.post('/reset-password', resetPassword);
 router.post('/change-password-initiate', protect, initiateChangePassword);
 router.post('/change-password-complete', protect, completeChangePassword);
+router.get('/profile', protect, getUserProfile);
 
 module.exports = router;

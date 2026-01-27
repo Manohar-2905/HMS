@@ -13,8 +13,10 @@ const markAttendance = async (req, res) => {
 
     try {
         const operations = attendanceData.map(item => {
+            // Force UTC Date from YYYY-MM-DD string
             const date = new Date(item.date);
-            date.setHours(0, 0, 0, 0); // Normalize to midnight
+            // Ensure no local time interference (though '2026-01-28' is usually UTC midnight)
+            // Storing just the date part timestamp is safest.
 
             return Attendance.findOneAndUpdate(
                 { user: item.userId, date: date },
@@ -52,7 +54,6 @@ const getMyAttendance = async (req, res) => {
 const getAttendanceByDate = async (req, res) => {
     try {
         const queryDate = new Date(req.params.date);
-        queryDate.setHours(0, 0, 0, 0);
 
         // Fetch all students
         const students = await User.find({ role: 'user' }).select('name email phone photo');
@@ -86,7 +87,7 @@ const getAttendanceByDate = async (req, res) => {
 const getAttendanceByMonth = async (req, res) => {
     try {
         const { userId, month, year } = req.params;
-        
+
         // Month is 1-indexed (1-12)
         const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
         const endDate = new Date(parseInt(year), parseInt(month), 0);
@@ -121,9 +122,10 @@ const markBulkAttendance = async (req, res) => {
 
     try {
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
         const end = new Date(endDate);
-        end.setHours(0, 0, 0, 0);
+
+        // Ensure strictly date comparison without time interference
+        // (Assuming input is YYYY-MM-DD or equivalent ISO date part)
 
         if (end < start) {
             return res.status(400).json({ message: 'End date cannot be before start date' });
@@ -133,7 +135,9 @@ const markBulkAttendance = async (req, res) => {
         let curr = new Date(start);
 
         while (curr <= end) {
+            // Create a fresh Date object for the current iteration
             const dateToMark = new Date(curr);
+
             operations.push(
                 Attendance.findOneAndUpdate(
                     { user: userId, date: dateToMark },
@@ -141,6 +145,8 @@ const markBulkAttendance = async (req, res) => {
                     { upsert: true, new: true, runValidators: true }
                 )
             );
+
+            // Advance by 1 day
             curr.setDate(curr.getDate() + 1);
         }
 

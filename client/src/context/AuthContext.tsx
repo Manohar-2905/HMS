@@ -24,6 +24,7 @@ interface AuthContextType {
     logout: () => void;
     isAdmin: boolean;
     loading: boolean;
+    refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +57,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('userInfo', JSON.stringify(userData));
     };
 
+    const refreshUser = async () => {
+        try {
+            const { data } = await api.get('/api/auth/profile');
+            // Merge new data with existing token (backend profile doesn't send token)
+            // But we can just use the existing user token if needed, or if backend sends token, use it.
+            // Backend profile sends all fields but NO token usually (or depends on implementation).
+            // My implementation above DOES NOT send token. So we must preserve it.
+
+            setUser(prev => {
+                if (!prev) return null;
+                const updated = { ...prev, ...data };
+                localStorage.setItem('userInfo', JSON.stringify(updated));
+                return updated;
+            });
+        } catch (error) {
+            console.error('Failed to refresh user profile', error);
+        }
+    };
+
     const logout = () => {
         localStorage.removeItem('userInfo');
         setUser(null);
@@ -64,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isAdmin = user?.role === 'admin';
 
     return (
-        <AuthContext.Provider value={{ user, login, updateUser, logout, isAdmin, loading }}>
+        <AuthContext.Provider value={{ user, login, updateUser, logout, isAdmin, loading, refreshUser }}>
             {children}
         </AuthContext.Provider>
     );

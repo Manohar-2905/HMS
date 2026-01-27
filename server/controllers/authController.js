@@ -132,8 +132,8 @@ const registerUser = async (req, res) => {
         }
     } catch (error) {
         console.error('Register error:', error);
-        res.status(500).json({ 
-            message: error.message || 'Server Error' 
+        res.status(500).json({
+            message: error.message || 'Server Error'
         });
     }
 };
@@ -236,13 +236,13 @@ const approveUser = async (req, res) => {
         if (user) {
             user.isVerified = true;
             user.isPendingApproval = false;
-            
+
             // Handle optional payment info during approval
             if (req.body.totalAmount !== undefined) user.totalAmount = Number(req.body.totalAmount) || 0;
             if (req.body.paidAmount !== undefined) {
                 const initialPaid = Number(req.body.paidAmount) || 0;
                 user.paidAmount = initialPaid;
-                
+
                 // Record initial payment in history if > 0
                 if (initialPaid > 0) {
                     user.paymentHistory.push({
@@ -252,7 +252,7 @@ const approveUser = async (req, res) => {
                     });
                 }
             }
-            
+
             user.remainingAmount = (user.totalAmount || 0) - (user.paidAmount || 0);
 
             await user.save();
@@ -519,7 +519,7 @@ const updateUser = async (req, res) => {
                 const addedAmount = Number(req.body.paymentUpdate);
                 if (!isNaN(addedAmount)) {
                     user.paidAmount = (user.paidAmount || 0) + addedAmount;
-                    
+
                     // Record in history
                     user.paymentHistory.push({
                         amount: addedAmount,
@@ -593,6 +593,31 @@ const updateUser = async (req, res) => {
     }
 };
 
+// @desc    Get current user profile
+// @route   GET /api/auth/profile
+// @access  Private
+const getUserProfile = async (req, res) => {
+    const user = await User.findById(req.user._id);
+
+    if (user) {
+        res.json({
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            photo: user.photo,
+            phone: user.phone,
+            address: user.address,
+            roomType: user.roomType,
+            totalAmount: user.totalAmount,
+            paidAmount: user.paidAmount,
+            remainingAmount: user.remainingAmount,
+        });
+    } else {
+        res.status(404).json({ message: 'User not found' });
+    }
+};
+
 module.exports = {
     loginUser,
     registerUser,
@@ -600,6 +625,7 @@ module.exports = {
     getPendingUsers,
     approveUser,
     getUsers,
+    getUserProfile,
     forgotPassword,
     verifyOtp,
     resetPassword,
