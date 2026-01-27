@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin, Facebook, Instagram } from "lucide-react";
+import { Mail, Phone, MapPin, Instagram } from "lucide-react";
 
 export function Footer() {
     return (
@@ -20,10 +20,8 @@ export function Footer() {
                             Your home away from home. Experience comfortable living with modern amenities and a vibrant community.
                         </p>
                         <div className="flex gap-3">
-                            <a href="#" className="w-10 h-10 rounded-full bg-background/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors">
-                                <Facebook className="w-4 h-4" />
-                            </a>
-                            <a href="#" className="w-10 h-10 rounded-full bg-background/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors">
+
+                            <a href="https://www.instagram.com/yashoda_bhawa_official?igsh=anQyZnl0djdtNDZp" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-background/10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-colors">
                                 <Instagram className="w-4 h-4" />
                             </a>
 
@@ -69,11 +67,11 @@ export function Footer() {
                             </li>
                             <li className="flex items-center gap-3">
                                 <Phone className="w-5 h-5 text-primary shrink-0" />
-                                <span className="text-background/70 text-sm">+91 98765 43210</span>
+                                <span className="text-background/70 text-sm">+91 7979804299</span>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Mail className="w-5 h-5 text-primary shrink-0" />
-                                <span className="text-background/70 text-sm">info@yashodabhavan.com</span>
+                                <span className="text-background/70 text-sm">yashodabhawan8@gmail.com</span>
                             </li>
                         </ul>
                     </div>

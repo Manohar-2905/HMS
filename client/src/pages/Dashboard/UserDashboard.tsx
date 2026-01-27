@@ -136,6 +136,29 @@ const UserDashboard = () => {
         }
     };
 
+    // New helper for proxy download
+    const handleProxyDownload = async (id: string, title: string) => {
+        const toastId = toast.loading('Downloading...');
+        try {
+            const response = await api.get(`/api/notes/proxy/${id}`, {
+                responseType: 'blob'
+            });
+            const blob = new Blob([response.data], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            link.download = `${title}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+            toast.success('Download complete!', { id: toastId });
+        } catch (error) {
+            console.error('Download error:', error);
+            toast.error('Failed to download PDF', { id: toastId });
+        }
+    };
+
     const handleDirectDownload = (url: string, filename: string) => {
         try {
             let pdfUrl = url.replace(/^http:/, 'https:');
@@ -478,7 +501,7 @@ const UserDashboard = () => {
                                                                                 <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n._id })}>
                                                                                     <Maximize className="w-3.5 h-3.5" />
                                                                                 </Button>
-                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-primary" onClick={() => handleDirectDownload(n.pdfUrl, `${n.title}.pdf`)}>
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-primary" onClick={() => handleProxyDownload(n._id, n.title)}>
                                                                                     <Download className="w-3.5 h-3.5" />
                                                                                 </Button>
                                                                             </div>

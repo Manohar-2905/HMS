@@ -147,43 +147,69 @@ const proxyPdf = async (req, res) => {
             return res.status(404).json({ message: 'PDF URL not found' });
         }
 
-        // Ensure HTTPS URL
-        let url = pdfUrl.replace(/^http:/, 'https:');
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-            url = `https://${url}`;
-        }
-
-        // Parse URL
-        const urlObj = new URL(url);
-        const client = urlObj.protocol === 'https:' ? https : http;
-
-        // Fetch PDF from Cloudinary and stream to client
-        const request = client.get(url, (response) => {
-            // Set appropriate headers
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${note.title}.pdf"`);
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-
-            // Handle errors
-            if (response.statusCode !== 200) {
-                return res.status(response.statusCode).json({
-                    message: `Failed to fetch PDF: ${response.statusCode}`
-                });
+        // Helper to fetch with redirect support
+        const fetchUrl = (url, redirectCount = 0) => {
+            if (redirectCount > 5) {
+                return res.status(500).json({ message: 'Too many redirects' });
             }
 
-            // Pipe the response
-            response.pipe(res);
-        });
+            // Ensure HTTPS/HTTP protocol
+            let targetUrl = url;
+            if (targetUrl.startsWith('http:')) {
+                // targetUrl is already http
+            } else if (!targetUrl.startsWith('https:')) {
+                // Add https if missing
+                targetUrl = `https://${targetUrl}`;
+            }
+            // However, note.pdfUrl usually comes fully qualified from Cloudinary.
+            // Cloudinary often redirects http -> https.
 
-        request.on('error', (error) => {
-            console.error('Proxy error:', error);
-            res.status(500).json({ message: 'Failed to proxy PDF' });
-        });
+            const urlObj = new URL(targetUrl);
+            const client = urlObj.protocol === 'https:' ? https : http;
 
-        request.end();
+            const request = client.get(targetUrl, (response) => {
+                // Handle Redirects
+                if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+                    return fetchUrl(response.headers.location, redirectCount + 1);
+                }
+
+                // Handle Errors
+                if (response.statusCode !== 200) {
+                    // If Cloudinary gives 404/500, we should proxy that error or generic one
+                    return res.status(response.statusCode).json({
+                        message: `Failed to fetch from Cloudinary: ${response.statusCode}`
+                    });
+                }
+
+                // Success - pipe PDF
+                res.setHeader('Content-Type', 'application/pdf');
+                res.setHeader('Content-Disposition', `inline; filename="${note.title}.pdf"`);
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                response.pipe(res);
+            });
+
+            request.on('error', (error) => {
+                console.error('Proxy request error:', error);
+                if (!res.headersSent) {
+                    res.status(500).json({ message: 'Failed to proxy PDF request' });
+                }
+            });
+        };
+
+        // Start fetching
+        // Ensure initial URL is proper
+        let startUrl = pdfUrl.replace(/^http:/, 'https:');
+        if (!startUrl.startsWith('http://') && !startUrl.startsWith('https://')) {
+            startUrl = `https://${startUrl}`;
+        }
+
+        fetchUrl(startUrl);
+
     } catch (error) {
         console.error('Proxy PDF error:', error);
-        res.status(500).json({ message: 'Error proxying PDF' });
+        if (!res.headersSent) {
+            res.status(500).json({ message: 'Error proxying PDF' });
+        }
     }
 };
 
