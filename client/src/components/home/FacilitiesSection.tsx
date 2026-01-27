@@ -45,7 +45,7 @@ const facilities = [
 
 export function FacilitiesSection() {
     return (
-        <section className="py-24 bg-slate-100">
+        <section className="py-16 md:py-24 bg-slate-100">
             <div className="container mx-auto px-4">
                 {/* Section Header */}
                 <div className="text-center max-w-2xl mx-auto mb-16">

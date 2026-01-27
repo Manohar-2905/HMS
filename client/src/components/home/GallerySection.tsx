@@ -61,7 +61,7 @@ export function GallerySection() {
     );
 
     return (
-        <section className="py-24 bg-slate-100 relative overflow-hidden">
+        <section className="py-16 md:py-24 bg-slate-100 relative overflow-hidden">
             {/* Background Decorations */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -mr-48 -mt-48" />
             <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -ml-48 -mb-48" />

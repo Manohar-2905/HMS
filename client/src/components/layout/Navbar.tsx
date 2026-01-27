@@ -43,17 +43,20 @@ export function Navbar() {
     };
 
     const isActive = (href: string) => location.pathname === href;
-    const isScrolledOrOpen = scrolled || isOpen;
+    const isScrolled = scrolled;
+    const isMobileMenuOpen = isOpen;
     const isDarkHeaderPage = ["/about", "/rooms", "/contact", "/admin-dashboard", "/dashboard", "/gallery", "/events"].includes(location.pathname);
-    const forceLightText = isDarkHeaderPage && !isScrolledOrOpen;
+    const forceLightText = isDarkHeaderPage && !isScrolled && !isMobileMenuOpen;
 
     return (
         <nav
             className={cn(
                 "fixed top-0 left-0 right-0 z-50 transition-all duration-500",
-                isScrolledOrOpen
-                    ? "bg-background/80 backdrop-blur-xl shadow-lg border-b border-primary/20 py-3"
-                    : "bg-transparent py-5"
+                isMobileMenuOpen
+                    ? "bg-background shadow-xl border-b border-border py-4"
+                    : isScrolled
+                        ? "bg-background/80 backdrop-blur-xl shadow-lg border-b border-primary/20 py-3"
+                        : "bg-transparent py-5"
             )}
         >
             <div className="container mx-auto px-4">
@@ -70,7 +73,7 @@ export function Navbar() {
                         />
                         <span className={cn(
                             "font-display text-xl font-semibold transition-colors duration-300",
-                            isScrolledOrOpen ? "text-primary" : (forceLightText ? "text-white" : "text-foreground")
+                            (isScrolled || isMobileMenuOpen) ? "text-primary" : (forceLightText ? "text-white" : "text-foreground")
                         )}>
                             Yashoda bhavan
                         </span>
@@ -86,7 +89,7 @@ export function Navbar() {
                                     "relative text-sm font-medium transition-colors duration-300",
                                     isActive(link.href)
                                         ? "text-primary font-bold"
-                                        : isScrolledOrOpen
+                                        : isScrolled
                                             ? "text-muted-foreground hover:text-primary"
                                             : (forceLightText ? "text-white/90 hover:text-white" : "text-foreground hover:text-primary")
                                 )}
@@ -139,7 +142,7 @@ export function Navbar() {
                                     onClick={() => { setIsLoginModalOpen(true); setAuthView('register'); }}
                                     className={cn(
                                         "rounded-full h-9 px-5 transition-all duration-300",
-                                        isScrolledOrOpen
+                                        isScrolled
                                             ? "text-primary border-primary/40 hover:bg-primary hover:text-white"
                                             : (forceLightText ? "bg-white border-white text-primary hover:bg-white/90" : "text-foreground border-primary/30 hover:bg-primary hover:text-white")
                                     )}
@@ -173,46 +176,59 @@ export function Navbar() {
 
                 {/* Mobile Menu */}
                 {isOpen && (
-                    <div className="lg:hidden mt-4 pb-4 animate-fade-in">
-                        <div className="flex flex-col gap-2">
-                            {navLinks.map((link) => (
-                                <Link
-                                    key={link.name}
-                                    to={link.href}
-                                    onClick={() => setIsOpen(false)}
-                                    className={cn(
-                                        "px-4 py-3 rounded-lg transition-colors",
-                                        isActive(link.href)
-                                            ? "bg-primary/10 text-primary"
-                                            : "hover:bg-muted text-muted-foreground"
-                                    )}
-                                >
-                                    {link.name}
-                                </Link>
-                            ))}
-                            <div className="border-t border-border mt-2 pt-4 flex flex-col gap-2">
+                    <div className="lg:hidden mt-4 pb-4 animate-slide-down">
+                        <div className="flex flex-col gap-3">
+                            <div className="bg-muted/30 p-2 rounded-xl border border-border/50">
+                                {navLinks.map((link) => (
+                                    <Link
+                                        key={link.name}
+                                        to={link.href}
+                                        onClick={() => setIsOpen(false)}
+                                        className={cn(
+                                            "flex items-center justify-between px-4 py-3.5 rounded-lg transition-all duration-300 font-medium",
+                                            isActive(link.href)
+                                                ? "bg-primary text-white shadow-md shadow-primary/20"
+                                                : "text-foreground/80 hover:bg-background hover:text-primary hover:shadow-sm"
+                                        )}
+                                    >
+                                        {link.name}
+                                        {isActive(link.href) && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                    </Link>
+                                ))}
+                            </div>
+
+                            <div className="flex flex-col gap-3 mt-2 px-1">
                                 {user ? (
                                     <>
-                                        <Button variant="default" className="justify-start rounded-full" asChild>
+                                        <Button variant="default" size="lg" className="w-full rounded-xl shadow-lg" asChild>
                                             <Link to={user.role === 'admin' ? "/admin-dashboard" : "/dashboard"} onClick={() => setIsOpen(false)}>
-                                                <LayoutDashboard className="w-4 h-4 mr-2" />
+                                                <LayoutDashboard className="w-5 h-5 mr-3" />
                                                 Dashboard
                                             </Link>
                                         </Button>
-                                        <Button variant="outline" className="justify-start rounded-full hover:bg-primary hover:text-white hover:border-primary transition-colors duration-300" onClick={handleLogout}>
-                                            <LogOut className="w-4 h-4 mr-2" />
+                                        <Button variant="outline" size="lg" className="w-full rounded-xl border-border/60 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors" onClick={handleLogout}>
+                                            <LogOut className="w-5 h-5 mr-3" />
                                             Logout
                                         </Button>
                                     </>
                                 ) : (
-                                    <>
-                                        <Button onClick={() => { setIsOpen(false); setIsLoginModalOpen(true); setAuthView('login'); }} variant="outline" className="w-full rounded-full">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Button
+                                            onClick={() => { setIsOpen(false); setIsLoginModalOpen(true); setAuthView('login'); }}
+                                            variant="outline"
+                                            size="lg"
+                                            className="w-full rounded-xl font-semibold border-primary/20 text-primary hover:bg-primary/5"
+                                        >
                                             Login
                                         </Button>
-                                        <Button onClick={() => { setIsOpen(false); setIsLoginModalOpen(true); setAuthView('register'); }} className="w-full rounded-full">
+                                        <Button
+                                            onClick={() => { setIsOpen(false); setIsLoginModalOpen(true); setAuthView('register'); }}
+                                            size="lg"
+                                            className="w-full rounded-xl font-semibold shadow-lg shadow-primary/20"
+                                        >
                                             Register
                                         </Button>
-                                    </>
+                                    </div>
                                 )}
                             </div>
                         </div>

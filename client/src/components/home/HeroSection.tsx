@@ -4,7 +4,7 @@ import { ArrowRight, Star, Users, Shield } from "lucide-react";
 
 export function HeroSection() {
     return (
-        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
+        <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background py-16 md:py-0">
             {/* Background */}
             <div className="absolute inset-0 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px] opacity-40" />
             <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
@@ -45,26 +45,26 @@ export function HeroSection() {
                     </div>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-3 gap-8 mt-16 animate-fade-in delay-300">
-                        <div className="text-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-16 animate-fade-in delay-300">
+                        <div className="text-center p-4 bg-background/50 backdrop-blur-sm rounded-2xl sm:bg-transparent sm:p-0">
                             <div className="flex justify-center mb-2">
                                 <Users className="w-6 h-6 text-primary" />
                             </div>
-                            <div className="font-display text-2xl md:text-3xl font-bold text-foreground">500+</div>
+                            <div className="font-display text-3xl font-bold text-foreground">500+</div>
                             <div className="text-sm text-muted-foreground">Happy Residents</div>
                         </div>
-                        <div className="text-center">
+                        <div className="text-center p-4 bg-background/50 backdrop-blur-sm rounded-2xl sm:bg-transparent sm:p-0">
                             <div className="flex justify-center mb-2">
                                 <Star className="w-6 h-6 text-primary fill-primary" />
                             </div>
-                            <div className="font-display text-2xl md:text-3xl font-bold text-foreground">4.9</div>
+                            <div className="font-display text-3xl font-bold text-foreground">4.9</div>
                             <div className="text-sm text-muted-foreground">Average Rating</div>
                         </div>
-                        <div className="text-center">
+                        <div className="text-center p-4 bg-background/50 backdrop-blur-sm rounded-2xl sm:bg-transparent sm:p-0">
                             <div className="flex justify-center mb-2">
                                 <Shield className="w-6 h-6 text-primary" />
                             </div>
-                            <div className="font-display text-2xl md:text-3xl font-bold text-foreground">24/7</div>
+                            <div className="font-display text-3xl font-bold text-foreground">24/7</div>
                             <div className="text-sm text-muted-foreground">Security</div>
                         </div>
                     </div>

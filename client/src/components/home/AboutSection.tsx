@@ -1,9 +1,9 @@
 
 export function AboutSection() {
     return (
-        <section className="py-24 bg-secondary/30">
-            <div className="container mx-auto px-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <section className="py-16 md:py-24 bg-secondary/30 relative overflow-hidden">
+            <div className="container mx-auto px-4 relative z-10">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
                     {/* Text Content */}
                     <div className="space-y-8">
                         <div>
@@ -38,13 +38,13 @@ export function AboutSection() {
                     </div>
 
                     {/* Owner Image / Card */}
-                    <div className="relative lg:pl-10">
+                    <div className="relative mt-8 lg:mt-0 lg:pl-10">
                         <div className="absolute top-10 -left-10 w-32 h-32 bg-primary/10 rounded-full blur-3xl animate-pulse" />
                         <div className="absolute bottom-10 -right-10 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl" />
 
-                        <div className="relative bg-background p-10 md:p-14 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-border/50 backdrop-blur-sm">
+                        <div className="relative bg-background p-8 md:p-14 rounded-[3rem] shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-border/50 backdrop-blur-sm">
                             <div className="flex flex-col items-center text-center">
-                                <div className="w-48 h-48 rounded-full p-1.5 bg-gradient-to-br from-primary via-orange-400 to-primary mb-8 shadow-2xl scale-110 lg:scale-125 transition-transform duration-500 hover:scale-115">
+                                <div className="w-40 h-40 md:w-48 md:h-48 rounded-full p-1.5 bg-gradient-to-br from-primary via-orange-400 to-primary mb-8 shadow-2xl scale-110 lg:scale-125 transition-transform duration-500 hover:scale-115">
                                     <div className="w-full h-full rounded-full overflow-hidden bg-muted border-4 border-background">
                                         <img
                                             src="/ownerImage.jpg"
@@ -54,7 +54,7 @@ export function AboutSection() {
                                     </div>
                                 </div>
 
-                                <blockquote className="font-display text-2xl font-medium text-foreground mb-8 italic leading-relaxed">
+                                <blockquote className="font-display text-xl md:text-2xl font-medium text-foreground mb-8 italic leading-relaxed">
                                     "Our mission is to ensure that every student feels safe, valued, and empowered to achieve their dreams while staying with us."
                                 </blockquote>
 

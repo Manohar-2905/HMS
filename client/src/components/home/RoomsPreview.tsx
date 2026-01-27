@@ -29,7 +29,7 @@ export function RoomsPreview() {
         // Optional: Show Mock or "No rooms available"
     }
     return (
-        <section className="py-24">
+        <section className="py-16 md:py-24">
             <div className="container mx-auto px-4">
                 {/* Section Header */}
                 <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-12">

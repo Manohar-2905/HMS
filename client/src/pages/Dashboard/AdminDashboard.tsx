@@ -1127,7 +1127,7 @@ const AdminDashboard = () => {
                         )}
 
                         {activeTab === 'notes' && (
-                            <div className="animate-fade-in flex flex-col h-[calc(100vh-200px)] min-h-[600px]">
+                            <div className="animate-fade-in flex flex-col h-auto min-h-[600px]">
                                 <Button variant="ghost" className="mb-4 pl-0 w-fit hover:bg-transparent text-muted-foreground hover:text-foreground" onClick={() => setActiveTab('users')}>
                                     <ArrowLeft className="w-4 h-4 mr-2" /> Back to Users
                                 </Button>
@@ -1194,7 +1194,7 @@ const AdminDashboard = () => {
                                 </div>
 
                                 {/* Hierarchical Notes Display */}
-                                <div className="flex-1 overflow-y-auto space-y-8 pr-2 custom-scrollbar">
+                                <div className="space-y-8">
                                     {['Admin', 'User'].map((cat) => {
                                         const catNotes = notes.filter(n => n.category === cat);
                                         const sections = Array.from(new Set(catNotes.map(n => n.section)));

@@ -4,7 +4,7 @@ import { ArrowRight, Phone } from "lucide-react";
 
 export function CTASection() {
     return (
-        <section className="py-24 bg-white">
+        <section className="py-16 md:py-24 bg-white">
             <div className="container mx-auto px-4">
                 <div className="relative rounded-3xl overflow-hidden shadow-2xl">
                     {/* Background */}
