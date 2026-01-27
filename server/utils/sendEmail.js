@@ -61,7 +61,7 @@ async function sendGmailApi(auth, options) {
     // Construct MIME message manually
     // Headers need to be properly formatted and encoded
     const subject = options.subject;
-    const from = `${process.env.FROM_NAME || 'Yashoda Bhawan'} <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`;
+    const from = `"${process.env.FROM_NAME || 'Yashoda Bhawan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`;
     const to = options.email;
     const body = options.html || options.message;
     const contentType = options.html ? 'text/html' : 'text/plain';
