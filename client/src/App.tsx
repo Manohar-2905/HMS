@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import UserDashboard from './pages/Dashboard/UserDashboard';
 import AdminDashboard from './pages/Dashboard/AdminDashboard';
 import Contact from './pages/Contact';
+import Gallery from './pages/Gallery';
+import Events from './pages/Events';
 
 // Protected Route Component
 const PrivateRoute = ({ children, adminOnly = false }: { children: React.ReactElement, adminOnly?: boolean }) => {
@@ -58,6 +60,15 @@ const App = () => {
               <Route path="/rooms" element={<Rooms />} />
               <Route path="/login" element={<Login />} />
               <Route path="/contact" element={<Contact />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route
+                path="/events"
+                element={
+                  <PrivateRoute>
+                    <Events />
+                  </PrivateRoute>
+                }
+              />
 
               {/* User Routes */}
               <Route

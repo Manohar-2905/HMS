@@ -105,7 +105,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Student Name"
                             className="pl-9"
                             value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
                         />
                     </div>
                 </div>
@@ -120,7 +120,9 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Email"
                             className="pl-9"
                             value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, email: e.target.value })}
+                            pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                            title="Please enter a valid email address"
                         />
                     </div>
                 </div>
@@ -135,7 +137,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Choose Password"
                             className="pl-9"
                             value={formData.password}
-                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, password: e.target.value })}
                         />
                     </div>
                 </div>
@@ -149,7 +151,12 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Contact Number"
                             className="pl-9"
                             value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, phone: val }); }}
+                            type="tel"
+                            minLength={10}
+                            maxLength={10}
+                            pattern="[0-9]{10}"
+                            title="Phone number must be exactly 10 digits"
                         />
                     </div>
                 </div>
@@ -163,7 +170,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Permanent Address"
                             className="pl-9"
                             value={formData.address}
-                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, address: e.target.value })}
                         />
                     </div>
                 </div>
@@ -176,7 +183,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             type="date"
                             className="pl-9"
                             value={formData.dob}
-                            onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, dob: e.target.value })}
                         />
                     </div>
                 </div>
@@ -186,7 +193,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="12-digit Aadhar"
                         value={formData.aadharNo}
-                        onChange={(e) => setFormData({ ...formData, aadharNo: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, aadharNo: e.target.value })}
                     />
                 </div>
 
@@ -203,7 +210,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Institution Name"
                             className="pl-9"
                             value={formData.university}
-                            onChange={(e) => setFormData({ ...formData, university: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, university: e.target.value })}
                         />
                     </div>
                 </div>
@@ -216,7 +223,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Uni/College Reg No."
                             className="pl-9"
                             value={formData.registrationNo}
-                            onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, registrationNo: e.target.value })}
                         />
                     </div>
                 </div>
@@ -231,7 +238,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="Father's Full Name"
                         value={formData.fatherName}
-                        onChange={(e) => setFormData({ ...formData, fatherName: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, fatherName: e.target.value })}
                     />
                 </div>
 
@@ -240,7 +247,12 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="Father's Contact"
                         value={formData.fatherPhone}
-                        onChange={(e) => setFormData({ ...formData, fatherPhone: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, fatherPhone: val }); }}
+                        type="tel"
+                        minLength={10}
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        title="Phone number must be exactly 10 digits"
                     />
                 </div>
 
@@ -249,7 +261,7 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="Mother's Full Name"
                         value={formData.motherName}
-                        onChange={(e) => setFormData({ ...formData, motherName: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, motherName: e.target.value })}
                     />
                 </div>
 
@@ -258,7 +270,12 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="Mother's Contact"
                         value={formData.motherPhone}
-                        onChange={(e) => setFormData({ ...formData, motherPhone: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, motherPhone: val }); }}
+                        type="tel"
+                        minLength={10}
+                        maxLength={10}
+                        pattern="[0-9]{10}"
+                        title="Phone number must be exactly 10 digits"
                     />
                 </div>
             </div>

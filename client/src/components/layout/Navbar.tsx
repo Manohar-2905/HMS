@@ -44,6 +44,8 @@ export function Navbar() {
 
     const isActive = (href: string) => location.pathname === href;
     const isScrolledOrOpen = scrolled || isOpen;
+    const isDarkHeaderPage = ["/about", "/rooms", "/contact", "/admin-dashboard", "/dashboard", "/gallery", "/events"].includes(location.pathname);
+    const forceLightText = isDarkHeaderPage && !isScrolledOrOpen;
 
     return (
         <nav
@@ -68,7 +70,7 @@ export function Navbar() {
                         />
                         <span className={cn(
                             "font-display text-xl font-semibold transition-colors duration-300",
-                            isScrolledOrOpen ? "text-primary" : "text-white"
+                            isScrolledOrOpen ? "text-primary" : (forceLightText ? "text-white" : "text-foreground")
                         )}>
                             Yashoda bhavan
                         </span>
@@ -83,8 +85,10 @@ export function Navbar() {
                                 className={cn(
                                     "relative text-sm font-medium transition-colors duration-300",
                                     isActive(link.href)
-                                        ? "text-primary"
-                                        : isScrolledOrOpen ? "text-muted-foreground hover:text-primary" : "text-white/70 hover:text-white"
+                                        ? "text-primary font-bold"
+                                        : isScrolledOrOpen
+                                            ? "text-muted-foreground hover:text-primary"
+                                            : (forceLightText ? "text-white/90 hover:text-white" : "text-foreground hover:text-primary")
                                 )}
                             >
                                 {link.name}
@@ -96,16 +100,34 @@ export function Navbar() {
                     </div>
 
                     {/* Auth Buttons */}
-                    <div className="hidden lg:flex items-center gap-3">
+                    <div className="hidden lg:flex items-center gap-2">
                         {user ? (
                             <>
-                                <Button variant="default" size="sm" className="rounded-full shadow-lg" asChild>
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    className={cn(
+                                        "rounded-full shadow-lg h-9 px-5",
+                                        forceLightText ? "bg-white text-primary hover:bg-white/90" : "bg-primary text-white hover:bg-primary/90"
+                                    )}
+                                    asChild
+                                >
                                     <Link to={user.role === 'admin' ? "/admin-dashboard" : "/dashboard"}>
                                         <LayoutDashboard className="w-4 h-4 mr-2" />
                                         Dashboard
                                     </Link>
                                 </Button>
-                                <Button variant="outline" size="sm" onClick={handleLogout} className="rounded-full hover:bg-primary hover:text-white hover:border-primary transition-colors duration-300">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleLogout}
+                                    className={cn(
+                                        "rounded-full h-9 px-5 transition-all duration-300",
+                                        forceLightText
+                                            ? "bg-white border-white text-primary hover:bg-white/90"
+                                            : "border-border text-foreground hover:bg-primary hover:text-white hover:border-primary"
+                                    )}
+                                >
                                     <LogOut className="w-4 h-4 mr-2" />
                                     Logout
                                 </Button>
@@ -116,15 +138,20 @@ export function Navbar() {
                                     variant={"outline"}
                                     onClick={() => { setIsLoginModalOpen(true); setAuthView('register'); }}
                                     className={cn(
-                                        "rounded-full border-primary/30 transition-all duration-300 bg-white/5 backdrop-blur-sm hover:bg-primary hover:border-primary hover:text-white",
-                                        isScrolledOrOpen ? "text-primary border-primary/50" : "text-white"
+                                        "rounded-full h-9 px-5 transition-all duration-300",
+                                        isScrolledOrOpen
+                                            ? "text-primary border-primary/40 hover:bg-primary hover:text-white"
+                                            : (forceLightText ? "bg-white border-white text-primary hover:bg-white/90" : "text-foreground border-primary/30 hover:bg-primary hover:text-white")
                                     )}
                                 >
                                     Register
                                 </Button>
                                 <Button
                                     onClick={() => { setIsLoginModalOpen(true); setAuthView('login'); }}
-                                    className={"rounded-full shadow-glow bg-primary hover:bg-primary/90 text-white transition-all transform hover:scale-105 active:scale-95 px-8"}
+                                    className={cn(
+                                        "rounded-full h-9 px-6 shadow-glow transition-all transform hover:scale-105 active:scale-95",
+                                        forceLightText ? "bg-white text-primary hover:bg-white/90" : "bg-primary text-white hover:bg-primary/90"
+                                    )}
                                 >
                                     Login
                                 </Button>
@@ -134,7 +161,10 @@ export function Navbar() {
 
                     {/* Mobile Menu Button */}
                     <button
-                        className="lg:hidden p-2 rounded-lg hover:bg-muted transition-colors ml-auto"
+                        className={cn(
+                            "lg:hidden p-2 rounded-lg transition-colors ml-auto",
+                            forceLightText ? "text-white hover:bg-white/10" : "hover:bg-muted text-foreground"
+                        )}
                         onClick={() => setIsOpen(!isOpen)}
                     >
                         {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}

@@ -1,5 +1,5 @@
 const Note = require('../models/Note');
-const Folder = require('../models/Folder');
+
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 const { deleteFile } = require('../utils/cloudinaryHelper');
@@ -11,60 +11,33 @@ const http = require('http');
 // @access  Private
 const getNotes = async (req, res) => {
     try {
-        const folderId = req.query.folderId || null;
+        let notesQuery = {};
 
-        // Fetch folders in this directory
-        const folders = await Folder.find({ parentFolder: folderId }).populate('createdBy', 'name');
-
-        // Fetch notes in this directory
-        let notesQuery = { folder: folderId };
-        
-        // If not admin, maybe still show only approved? 
-        // For Drive-like behavior, usually you see what you upload or shared. 
-        // Keeping original logic: Admins see all, Users see approved.
         if (!req.user || req.user.role !== 'admin') {
-            notesQuery.isApproved = true;
+            notesQuery = {
+                $or: [
+                    { isApproved: true },
+                    { uploadedBy: req.user._id }
+                ]
+            };
         }
 
-        const notes = await Note.find(notesQuery).populate('uploadedBy', 'name email');
+        const notes = await Note.find(notesQuery).populate('uploadedBy', 'name email').sort({ createdAt: -1 });
 
-        // Get current folder details for breadcrumbs if inside a folder
-        let currentFolder = null;
-        if (folderId) {
-            currentFolder = await Folder.findById(folderId);
-        }
-
-        res.json({ folders, notes, currentFolder });
+        res.json({ notes });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error fetching notes' });
     }
 };
 
-// @desc    Create a new folder
-// @route   POST /api/notes/folder
-// @access  Private/Admin (or any user depending on requirement, assuming Admin for now regarding management)
-const createFolder = async (req, res) => {
-    try {
-        const { name, parentFolder } = req.body;
-        const folder = new Folder({
-            name,
-            parentFolder: parentFolder || null,
-            createdBy: req.user._id
-        });
-        const createdFolder = await folder.save();
-        res.status(201).json(createdFolder);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error creating folder' });
-    }
-};
+
 
 // @desc    Upload a note
 // @route   POST /api/notes
 // @access  Private
 const createNote = async (req, res) => {
-    const { title, section, folderId } = req.body;
+    const { title, section, category } = req.body;
     let pdfUrl = '';
 
     try {
@@ -77,8 +50,6 @@ const createNote = async (req, res) => {
                             folder: 'notes',
                             use_filename: true,
                             unique_filename: true,
-                            // Ensure public access - remove type and format which can cause issues
-                            // Public access is default for unsigned uploads
                         },
                         (error, result) => {
                             if (result) {
@@ -93,17 +64,22 @@ const createNote = async (req, res) => {
             };
 
             const result = await streamUpload(req.file.buffer);
-            // Use secure_url which is always HTTPS and public
             pdfUrl = result.secure_url;
         } else {
             return res.status(400).json({ message: 'Please upload a PDF file' });
         }
 
+        // Determine category: if not provided, use uploader's role
+        let finalCategory = category;
+        if (!finalCategory) {
+            finalCategory = req.user.role === 'admin' ? 'Admin' : 'User';
+        }
+
         const note = new Note({
             title,
             section,
+            category: finalCategory,
             pdfUrl,
-            folder: folderId || null,
             uploadedBy: req.user._id,
             isApproved: req.user.role === 'admin',
         });
@@ -133,44 +109,7 @@ const deleteNote = async (req, res) => {
     }
 };
 
-// @desc    Delete a folder and its contents
-// @route   DELETE /api/notes/folder/:id
-// @access  Private/Admin
-const deleteFolder = async (req, res) => {
-    try {
-        const folder = await Folder.findById(req.params.id);
-        if (!folder) {
-            return res.status(404).json({ message: 'Folder not found' });
-        }
 
-        // Recursive delete or just delete notes and subfolders?
-        // Simple 1-level for now or assume flat for this step - but Drive is recursive.
-        // We will just delete the folder, and any notes directly inside it. 
-        // Ideally we should delete everything recursively.
-        
-        // Find all notes in this folder
-        const notes = await Note.find({ folder: folder._id });
-        for (const note of notes) {
-            if (note.pdfUrl) {
-                await deleteFile(note.pdfUrl, 'notes');
-            }
-            await note.deleteOne();
-        }
-
-        // Find subfolders - we might need a recursive helper properly, 
-        // but for now, simple deletion.
-        // For robustness, let's just delete the folder itself and orphans.
-        // Or prevent delete if not empty.
-        // Let's implement delete contents:
-        await Folder.deleteMany({ parentFolder: folder._id }); // Delete immediate subfolders (orphaning their children technically if > 1 level)
-
-        await folder.deleteOne();
-        res.json({ message: 'Folder removed' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Delete failed' });
-    }
-};
 
 // @desc    Approve a note
 // @route   PUT /api/notes/:id/approve
@@ -193,7 +132,7 @@ const approveNote = async (req, res) => {
 const proxyPdf = async (req, res) => {
     try {
         const note = await Note.findById(req.params.id);
-        
+
         if (!note) {
             return res.status(404).json({ message: 'Note not found' });
         }
@@ -227,8 +166,8 @@ const proxyPdf = async (req, res) => {
 
             // Handle errors
             if (response.statusCode !== 200) {
-                return res.status(response.statusCode).json({ 
-                    message: `Failed to fetch PDF: ${response.statusCode}` 
+                return res.status(response.statusCode).json({
+                    message: `Failed to fetch PDF: ${response.statusCode}`
                 });
             }
 
@@ -248,4 +187,4 @@ const proxyPdf = async (req, res) => {
     }
 };
 
-module.exports = { getNotes, createNote, deleteNote, approveNote, createFolder, deleteFolder, proxyPdf };
+module.exports = { getNotes, createNote, deleteNote, approveNote, proxyPdf };

@@ -38,7 +38,7 @@ const Contact = () => {
                 />
 
                 {/* Page Header */}
-                <div className="hero-gradient py-24">
+                <div className="dark-gradient py-24">
                     <div className="container mx-auto px-4 text-center">
                         <h1 className="font-display text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
                             Get in Touch
@@ -150,11 +150,16 @@ const Contact = () => {
                                         <div className="space-y-2">
                                             <label className="text-sm font-medium text-foreground/80">Phone</label>
                                             <Input
+                                                type="tel"
                                                 value={formData.phone}
-                                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                                onChange={(e) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, phone: val }); }}
                                                 required
                                                 placeholder="Your Phone"
                                                 className="bg-background/50 border-border/50 focus:border-primary/50 transition-all rounded-xl h-12"
+                                                minLength={10}
+                                                maxLength={10}
+                                                pattern="[0-9]{10}"
+                                                title="Phone number must be exactly 10 digits"
                                             />
                                         </div>
                                     </div>
@@ -167,6 +172,8 @@ const Contact = () => {
                                             required
                                             placeholder="your.email@example.com"
                                             className="bg-background/50 border-border/50 focus:border-primary/50 transition-all rounded-xl h-12"
+                                            pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                                            title="Please enter a valid email address"
                                         />
                                     </div>
                                     <div className="space-y-2">

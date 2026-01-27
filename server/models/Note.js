@@ -4,6 +4,7 @@ const noteSchema = mongoose.Schema(
     {
         title: { type: String, required: true },
         section: { type: String, required: true },
+        category: { type: String, enum: ['Admin', 'User'], required: true },
         pdfUrl: { type: String, required: true },
         isApproved: {
             type: Boolean,
@@ -13,11 +14,6 @@ const noteSchema = mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             required: true,
             ref: 'User',
-        },
-        folder: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Folder',
-            default: null,
         },
     },
     { timestamps: true }

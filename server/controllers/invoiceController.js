@@ -49,9 +49,13 @@ const getInvoice = async (req, res) => {
         doc.text('hazaribaghgirlshostle.in', 130, 60);
 
         // Date Box
+        const { date } = req.query;
+        // Use provided date or today's date, format as DD/MM/YYYY
+        const displayDate = date ? new Date(date).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB');
+
         doc.fillColor(WHITE).fontSize(12).font('Helvetica-Bold').text('Date:', 440, 25);
         doc.rect(480, 20, 90, 20).fill(WHITE);
-        doc.fillColor(BLACK).fontSize(10).text(new Date().toLocaleDateString(), 485, 26);
+        doc.fillColor(BLACK).fontSize(10).text(displayDate, 485, 26);
 
 
         // --- FETCH PROFILE IMAGE HELPER ---

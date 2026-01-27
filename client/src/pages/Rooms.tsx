@@ -38,7 +38,7 @@ export default function Rooms() {
                 />
 
                 {/* Page Header */}
-                <div className="hero-gradient py-24">
+                <div className="dark-gradient py-24">
                     <div className="container mx-auto px-4 text-center">
                         <h1 className="font-display text-4xl md:text-5xl font-bold text-primary-foreground mb-4">
                             Our Accommodations

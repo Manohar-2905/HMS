@@ -9,35 +9,71 @@ import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SEO } from '@/components/layout/SEO';
-import { FileText, Upload, Lock, User, Wallet, CheckCircle, Pencil, Loader2, Calendar } from 'lucide-react';
+import { FileText, Lock, User, Wallet, Pencil, Loader2, Calendar, ShieldCheck, UserCircle, ChevronDown, ChevronRight, Folder, Download, Maximize, Bell } from 'lucide-react';
 import { AttendanceCalendar } from '@/components/dashboard/AttendanceCalendar';
 import toast from 'react-hot-toast';
-import { EventsSection } from '../../components/dashboard/EventsSection';
+
 
 // Interfaces
 interface Note {
     _id: string;
     title: string;
     section: string;
+    category: string;
     pdfUrl: string;
     uploadedBy?: {
+        _id: string;
         name: string;
         email?: string;
     };
     isApproved?: boolean;
+    createdAt: string;
 }
 
 const UserDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [notes, setNotes] = useState<Note[]>([]);
-    const [title, setTitle] = useState('');
-    const [section, setSection] = useState('');
-    const [file, setFile] = useState<File | null>(null);
-    const [uploading, setUploading] = useState(false);
+    const [noteTitle, setNoteTitle] = useState('');
+    const [noteSection, setNoteSection] = useState('');
+    const [noteCategory] = useState<'Admin' | 'User'>('User');
+    const [noteFile, setNoteFile] = useState<File | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const [photoUploading, setPhotoUploading] = useState(false);
     const [attendance, setAttendance] = useState<any[]>([]);
+    const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({ 'Admin': true });
+
+    // PDF Preview States
+    const [pdfPreview, setPdfPreview] = useState<{ isOpen: boolean; url: string | null; title: string | null; noteId: string | null }>({
+        isOpen: false,
+        url: null,
+        title: null,
+        noteId: null
+    });
+    const [pdfLoading, setPdfLoading] = useState(false);
+    const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (pdfPreview.isOpen && pdfPreview.noteId) {
+            const fetchPdfBlob = async () => {
+                setPdfLoading(true);
+                try {
+                    const response = await api.get(`/api/notes/proxy/${pdfPreview.noteId}`, {
+                        responseType: 'blob'
+                    });
+                    const blob = new Blob([response.data], { type: 'application/pdf' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    setPdfBlobUrl(blobUrl);
+                } catch (error) {
+                    console.error('Error fetching PDF blob:', error);
+                } finally {
+                    setPdfLoading(false);
+                }
+            };
+            fetchPdfBlob();
+        }
+    }, [pdfPreview.isOpen, pdfPreview.noteId]);
 
     useEffect(() => {
         fetchNotes();
@@ -56,17 +92,7 @@ const UserDashboard = () => {
     const fetchNotes = async () => {
         try {
             const { data } = await api.get('/api/notes');
-            // Filter notes for current user if backend returns all (though backend should filter, let's verify)
-            // Backend Note Controller: "getNotes = await Note.find({}).populate..." -> Returns ALL notes.
-            // Requirement: "View uploaded notes" - user likely wants to see THEIR notes or CLASS notes?
-            // "Notes visible only after login". "User cannot delete notes".
-            // If it's class notes, then seeing all is fine. If it's personal notes, should be filtered.
-            // Prompt: "Upload notes... View uploaded notes". Usually implies sharing or personal storage.
-            // Let's assume shared notes based on context of "Hostel" (e.g. syllabus, notices).
-            // But if it's "User upload notes", maybe personal?
-            // Let's filter by uploadedBy for "My Notes" section and maybe "All Notes" section.
-            // Backend implementation returns all. I'll just show all for now.
-            setNotes(data);
+            setNotes(data.notes);
         } catch (error: any) {
             console.error(error);
             if (error.response?.status === 401) {
@@ -76,46 +102,65 @@ const UserDashboard = () => {
         }
     };
 
-    const handleUpload = async (e: React.FormEvent) => {
+    const handleCreateNote = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!file) return alert('Please select a PDF file');
+        if (!noteFile) return toast.error('Please select a PDF file');
+        setIsLoading(true);
 
         const formData = new FormData();
-        formData.append('title', title);
-        formData.append('section', section);
-        formData.append('pdf', file);
-
-        setUploading(true);
-        const uploadPromise = api.post('/api/notes', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        toast.promise(uploadPromise, {
-            loading: 'Uploading note...',
-            success: 'Note uploaded! It will be visible after admin approval.',
-            error: (err) => err.response?.data?.message || 'Failed to upload note',
-        });
+        formData.append('title', noteTitle);
+        formData.append('section', noteSection);
+        formData.append('category', noteCategory);
+        formData.append('pdf', noteFile);
 
         try {
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' } };
+            const uploadPromise = api.post('/api/notes', formData, config);
+
+            toast.promise(uploadPromise, {
+                loading: 'Uploading note...',
+                success: 'Note added successfully! It will be visible once approved.',
+                error: (err: any) => err.response?.data?.message || 'Error creating note'
+            });
+
             await uploadPromise;
-            setTitle('');
-            setSection('');
-            setFile(null);
+            setNoteTitle('');
+            setNoteSection('');
+            setNoteFile(null);
             fetchNotes();
-        } catch (error: any) {
+        } catch (error) {
             console.error(error);
-            if (error.response?.status === 401) {
-                logout();
-                navigate('/');
-            }
         } finally {
-            setUploading(false);
+            setIsLoading(false);
+        }
+    };
+
+    const handleDirectDownload = (url: string, filename: string) => {
+        try {
+            let pdfUrl = url.replace(/^http:/, 'https:');
+            if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+                pdfUrl = `https://${pdfUrl}`;
+            }
+
+            const link = document.createElement('a');
+            link.href = pdfUrl;
+            link.download = filename;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            toast.success('Download started!');
+        } catch (error) {
+            console.error('Download error:', error);
+            toast.error('Failed to download PDF. Please try opening in a new tab.');
         }
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
-            setFile(e.target.files[0]);
+            setNoteFile(e.target.files[0]);
         }
     };
 
@@ -173,20 +218,23 @@ const UserDashboard = () => {
 
             <main className="flex-1">
                 {/* Hero Header */}
-                <div className="hero-gradient text-white pt-24 pb-16 mb-12">
-                    <div className="container mx-auto px-4">
+                <div className="dark-gradient pt-32 pb-16 relative overflow-hidden">
+                    {/* Decorative Background Elements */}
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.05),transparent)] pointer-events-none" />
+
+                    <div className="container mx-auto px-4 relative z-10">
                         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-                            <div>
-                                <h1 className="text-4xl md:text-5xl font-bold font-display mb-2">
+                            <div className="text-left">
+                                <h1 className="text-4xl md:text-5xl font-bold font-display text-white mb-2">
                                     Hello, {user?.name}
                                 </h1>
-                                <p className="text-white/80 text-lg">
+                                <p className="text-white/70 text-lg">
                                     Welcome back to your Yashoda Bhawan portal.
                                 </p>
                             </div>
                             <Button
                                 onClick={() => setIsChangePasswordOpen(true)}
-                                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-full backdrop-blur-md transition-all px-8"
+                                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-full backdrop-blur-sm transition-all h-12 px-8 font-medium"
                             >
                                 <Lock className="w-4 h-4 mr-2" />
                                 Change Password
@@ -195,7 +243,7 @@ const UserDashboard = () => {
                     </div>
                 </div>
 
-                <div className="container mx-auto px-4 pb-20">
+                <div className="container mx-auto px-4 pb-20 mt-12">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
                         {/* Profile Card */}
                         <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-8 shadow-xl transition-all hover:shadow-2xl">
@@ -290,7 +338,7 @@ const UserDashboard = () => {
                         </div>
                     </div>
 
-                    {/* Notes Section */}
+                    {/* Study Resources Section */}
                     <div className="bg-muted/30 rounded-3xl p-8 md:p-12 border border-border/50 shadow-inner">
                         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-10 gap-8">
                             <div>
@@ -301,93 +349,161 @@ const UserDashboard = () => {
                                 <p className="text-muted-foreground mt-1">Access lecture notes and shared repository</p>
                             </div>
 
-                            {/* Upload Form */}
-                            <form onSubmit={handleUpload} className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full xl:w-auto items-end">
-                                <div className="space-y-2">
+                            {/* Enhanced Upload Form */}
+                            <form onSubmit={handleCreateNote} className="grid grid-cols-1 md:grid-cols-5 gap-3 w-full xl:w-2/3 items-end bg-background/40 p-4 rounded-2xl border border-border/50">
+                                <div className="md:col-span-2 space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Title</label>
                                     <Input
                                         placeholder="e.g. Physics I"
-                                        value={title}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                                        value={noteTitle}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNoteTitle(e.target.value)}
                                         required
-                                        className="rounded-xl bg-background border-border"
+                                        className="rounded-xl bg-background border-border h-10"
                                     />
                                 </div>
-                                <div className="space-y-2">
+                                <div className="md:col-span-1 space-y-2">
                                     <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">Section</label>
                                     <Input
-                                        placeholder="e.g. A"
-                                        value={section}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSection(e.target.value)}
+                                        placeholder="e.g. SEM 1"
+                                        value={noteSection}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNoteSection(e.target.value)}
                                         required
-                                        className="rounded-xl bg-background border-border"
+                                        className="rounded-xl bg-background border-border h-10"
                                     />
                                 </div>
-                                <div className="space-y-2 md:col-span-1">
-                                    <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">PDF File</label>
-                                    <Input
-                                        type="file"
-                                        accept="application/pdf"
-                                        onChange={handleFileChange}
-                                        required
-                                        className="rounded-xl bg-background border-border text-xs cursor-pointer file:bg-primary/10 file:text-primary file:border-0 file:rounded-md file:mr-2"
-                                    />
+                                <div className="md:col-span-1 space-y-2">
+                                    <label className="text-[10px] uppercase font-bold text-muted-foreground ml-1">File</label>
+                                    <div className="relative">
+                                        <input
+                                            type="file"
+                                            accept="application/pdf"
+                                            id="note-file-user"
+                                            className="hidden"
+                                            onChange={handleFileChange}
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className="w-full h-10 rounded-xl px-2 text-[10px] truncate"
+                                            onClick={() => document.getElementById('note-file-user')?.click()}
+                                        >
+                                            {noteFile ? noteFile.name : 'Pick PDF'}
+                                        </Button>
+                                    </div>
                                 </div>
-                                <Button type="submit" disabled={uploading} className="rounded-xl h-10 w-full md:w-auto shadow-lg shadow-primary/20">
-                                    {uploading ? 'Processing...' : (
-                                        <>
-                                            <Upload className="w-4 h-4 mr-2" />
-                                            Upload Note
-                                        </>
-                                    )}
-                                </Button>
+                                <div className="md:col-span-1">
+                                    <Button type="submit" disabled={isLoading || !noteFile} className="rounded-xl h-10 w-full shadow-lg shadow-primary/20 font-bold text-xs">
+                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add'}
+                                    </Button>
+                                </div>
                             </form>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 font-sans">
-                            {notes.map((note: any) => (
-                                <div key={note._id} className="group bg-card p-6 rounded-2xl border border-border/50 hover:border-primary/50 hover:shadow-2xl transition-all duration-300 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 p-3">
-                                        {note.isApproved && <CheckCircle className="w-4 h-4 text-green-500" />}
-                                    </div>
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 rounded-xl bg-primary/5 group-hover:bg-primary/10 flex items-center justify-center text-primary transition-colors">
-                                            <FileText className="w-6 h-6" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h3 className="font-bold text-lg leading-tight mb-1 group-hover:text-primary transition-colors">{note.title}</h3>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded font-bold uppercase tracking-wider">{note.section}</span>
-                                            </div>
-                                        </div>
-                                    </div>
+                        <div className="space-y-6">
+                            {['Admin', 'User'].map((cat) => {
+                                const catNotes = notes.filter(n => n.category === cat);
+                                if (catNotes.length === 0 && cat === 'Admin') return null;
 
-                                    <div className="mt-8 flex justify-between items-center border-t border-border/50 pt-4">
-                                        <div className="flex flex-col">
-                                            <span className="text-[10px] text-muted-foreground uppercase font-bold">Uploaded By</span>
-                                            <span className="text-sm font-medium">{note.uploadedBy?.name || 'Academic Dept'}</span>
+                                const sections = Array.from(new Set(catNotes.map(n => n.section)));
+
+                                return (
+                                    <div key={cat} className="space-y-4">
+                                        <div
+                                            className="flex items-center justify-between bg-primary/5 p-4 rounded-2xl cursor-pointer hover:bg-primary/10 transition-colors border border-primary/10"
+                                            onClick={() => {
+                                                const isOpening = !expandedSections[cat];
+                                                setExpandedSections(prev => {
+                                                    const next = { ...prev };
+                                                    ['Admin', 'User'].forEach(c => { if (c !== cat) next[c] = false; });
+                                                    next[cat] = isOpening;
+                                                    return next;
+                                                });
+                                            }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-primary/20 rounded-xl">
+                                                    {cat === 'Admin' ? <ShieldCheck className="w-6 h-6 text-primary" /> : <UserCircle className="w-6 h-6 text-primary" />}
+                                                </div>
+                                                <h3 className="text-xl font-black uppercase tracking-tight">{cat} Section</h3>
+                                                <span className="bg-primary text-white text-[10px] px-2 py-0.5 rounded-full font-bold">{catNotes.length}</span>
+                                            </div>
+                                            {expandedSections[cat] ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                                         </div>
-                                        <a href={note.pdfUrl} target="_blank" rel="noopener noreferrer">
-                                            <Button variant="outline" size="sm" className="rounded-full px-4 hover:bg-primary hover:text-white hover:border-primary transition-all">
-                                                View PDF
-                                            </Button>
-                                        </a>
+
+                                        {expandedSections[cat] && (
+                                            <div className="space-y-4 pl-4 md:pl-8 border-l-2 border-primary/10 ml-6 md:ml-8 animate-in slide-in-from-top-2 duration-300">
+                                                {sections.length === 0 && <p className="text-muted-foreground italic text-sm py-4">No sections available.</p>}
+                                                {sections.map(secName => {
+                                                    const secNotes = catNotes.filter(n => n.section === secName);
+                                                    const secId = `${cat}-${secName}`;
+                                                    return (
+                                                        <div key={secId} className="space-y-3">
+                                                            <div
+                                                                className="flex items-center justify-between p-3 bg-card border border-border/50 rounded-xl cursor-pointer hover:shadow-sm"
+                                                                onClick={() => {
+                                                                    const isOpening = !expandedSections[secId];
+                                                                    setExpandedSections(prev => {
+                                                                        const next = { ...prev };
+                                                                        // Close all other sections (-), keep category level keys
+                                                                        Object.keys(next).forEach(key => {
+                                                                            if (key.includes('-') && key !== secId) next[key] = false;
+                                                                        });
+                                                                        next[secId] = isOpening;
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <Folder className="w-5 h-5 text-amber-500 fill-amber-500/10" />
+                                                                    <span className="font-bold text-sm tracking-wide uppercase">{secName}</span>
+                                                                    <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full font-bold">{secNotes.length} files</span>
+                                                                </div>
+                                                                {expandedSections[secId] ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                                                            </div>
+
+                                                            {expandedSections[secId] && (
+                                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-left-2 duration-200">
+                                                                    {secNotes.map(n => (
+                                                                        <div key={n._id} className="group flex items-center justify-between p-4 bg-background border border-border/60 rounded-2xl hover:border-primary/40 hover:shadow-lg transition-all relative overflow-hidden">
+                                                                            <div className="flex items-center gap-3">
+                                                                                <div className="p-2 bg-muted rounded-xl text-muted-foreground group-hover:text-primary transition-colors">
+                                                                                    <FileText className="w-5 h-5" />
+                                                                                </div>
+                                                                                <div className="min-w-0">
+                                                                                    <p className="font-bold text-xs truncate max-w-[120px]" title={n.title}>{n.title}</p>
+                                                                                    <p className="text-[10px] text-muted-foreground"> {n.isApproved ? 'Approved' : 'Pending'}</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n._id })}>
+                                                                                    <Maximize className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-primary" onClick={() => handleDirectDownload(n.pdfUrl, `${n.title}.pdf`)}>
+                                                                                    <Download className="w-3.5 h-3.5" />
+                                                                                </Button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                             {notes.length === 0 && (
-                                <div className="col-span-full py-20 text-center bg-background/50 rounded-2xl border-2 border-dashed border-border/50">
-                                    <FileText className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
-                                    <p className="text-muted-foreground italic font-medium">No shared resources found for your department.</p>
+                                <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl bg-muted/5">
+                                    <Bell className="w-12 h-12 text-muted-foreground m-auto mb-4 opacity-20" />
+                                    <p className="text-muted-foreground">No shared resources found.</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Events Section */}
-                    <div className="mb-12">
-                        <EventsSection />
-                    </div>
+
 
                     {/* Attendance Section */}
                     <div className="mt-12 bg-white border border-border shadow-md rounded-3xl p-8 transition-all hover:shadow-lg">
@@ -441,6 +557,102 @@ const UserDashboard = () => {
                     }}
                     onCancel={() => setIsChangePasswordOpen(false)}
                 />
+            </Modal>
+
+            {/* PDF Preview Modal */}
+            <Modal
+                isOpen={pdfPreview.isOpen}
+                onClose={() => {
+                    setPdfPreview({ isOpen: false, url: null, title: null, noteId: null });
+                    if (pdfBlobUrl) {
+                        URL.revokeObjectURL(pdfBlobUrl);
+                        setPdfBlobUrl(null);
+                    }
+                }}
+                title={pdfPreview.title || "PDF Preview"}
+                className="max-w-5xl h-[90vh]"
+            >
+                <div className="flex flex-col h-full">
+                    {pdfPreview.url && (() => {
+                        let pdfUrl = pdfPreview.url.replace(/^http:/, 'https:');
+                        if (!pdfUrl.startsWith('http://') && !pdfUrl.startsWith('https://')) {
+                            pdfUrl = `https://${pdfUrl}`;
+                        }
+                        const googleViewerUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(pdfUrl)}&embedded=true`;
+
+                        return (
+                            <div className="flex flex-col h-full">
+                                <div className="flex gap-2 p-4 border-b border-border/50">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                            if (pdfPreview.noteId) {
+                                                try {
+                                                    const response = await api.get(`/api/notes/proxy/${pdfPreview.noteId}`, {
+                                                        responseType: 'blob'
+                                                    });
+                                                    const blob = new Blob([response.data], { type: 'application/pdf' });
+                                                    const blobUrl = URL.createObjectURL(blob);
+                                                    const link = document.createElement('a');
+                                                    link.href = blobUrl;
+                                                    link.download = `${pdfPreview.title || 'document'}.pdf`;
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    document.body.removeChild(link);
+                                                    URL.revokeObjectURL(blobUrl);
+                                                    toast.success('Download started!');
+                                                } catch (error) {
+                                                    console.error('Download error:', error);
+                                                    toast.error('Failed to download PDF');
+                                                }
+                                            } else {
+                                                handleDirectDownload(pdfUrl, `${pdfPreview.title || 'document'}.pdf`);
+                                            }
+                                        }}
+                                    >
+                                        <Download className="w-4 h-4 mr-2" /> Download PDF
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => window.open(googleViewerUrl, '_blank')}
+                                    >
+                                        Open in New Tab
+                                    </Button>
+                                </div>
+                                <div className="flex-1 border rounded-lg overflow-hidden bg-gray-100 relative" style={{ minHeight: '600px' }}>
+                                    {pdfLoading ? (
+                                        <div className="flex items-center justify-center h-full">
+                                            <div className="text-center">
+                                                <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto mb-2" />
+                                                <p className="text-muted-foreground">Loading PDF...</p>
+                                            </div>
+                                        </div>
+                                    ) : pdfBlobUrl ? (
+                                        <iframe
+                                            src={pdfBlobUrl}
+                                            title={pdfPreview.title || "PDF Preview"}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            className="w-full h-full"
+                                        />
+                                    ) : (
+                                        <iframe
+                                            src={googleViewerUrl}
+                                            title={pdfPreview.title || "PDF Preview"}
+                                            width="100%"
+                                            height="100%"
+                                            style={{ border: 'none' }}
+                                            className="w-full h-full"
+                                        />
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </div>
             </Modal>
         </div>
     );

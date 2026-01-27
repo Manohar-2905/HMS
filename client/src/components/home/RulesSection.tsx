@@ -115,45 +115,58 @@ const rules = [
 
 export function RulesSection() {
     return (
-        <section className="py-24 bg-foreground text-background">
+        <section className="py-24 bg-white">
             <div className="container mx-auto px-4">
                 {/* Section Header */}
                 <div className="text-center max-w-2xl mx-auto mb-16">
                     <span className="text-primary font-medium text-sm uppercase tracking-wider">Guidelines</span>
-                    <h2 className="font-display text-3xl md:text-4xl font-bold mt-2 mb-4">
+                    <h2 className="font-display text-3xl md:text-4xl font-bold mt-2 mb-4 text-foreground">
                         Hostel Rules & Regulations
                     </h2>
-                    <p className="text-background/70">
+                    <p className="text-muted-foreground">
                         To ensure a safe and comfortable environment for all residents, please adhere to our hostel guidelines.
                     </p>
                 </div>
 
                 {/* Rules Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-                    {rules.map((rule, index) => (
-                        <div
-                            key={rule.title}
-                            className="flex gap-4 p-6 rounded-xl bg-gradient-to-br from-background/5 to-background/10 border border-background/10 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 hover:to-primary/5 transition-all duration-300"
-                            style={{ animationDelay: `${index * 100}ms` }}
-                        >
-                            <div className="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center shrink-0 h-fit">
-                                <rule.icon className="w-6 h-6 text-primary" />
+                    {rules.map((rule, index) => {
+                        // Vary icon colors inspired by the image
+                        const colors = [
+                            "bg-red-50 text-red-500",
+                            "bg-blue-50 text-blue-500",
+                            "bg-green-50 text-green-500",
+                            "bg-orange-50 text-orange-500",
+                            "bg-teal-50 text-teal-500",
+                            "bg-purple-50 text-purple-500",
+                        ];
+                        const colorClass = colors[index % colors.length];
+
+                        return (
+                            <div
+                                key={rule.title}
+                                className="flex gap-4 p-6 rounded-2xl bg-white border border-border shadow-sm hover:shadow-md transition-all duration-300"
+                                style={{ animationDelay: `${index * 100}ms` }}
+                            >
+                                <div className={`w-12 h-12 rounded-xl ${colorClass} flex items-center justify-center shrink-0 h-fit`}>
+                                    <rule.icon className="w-6 h-6" />
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="font-display text-lg font-semibold mb-3 text-foreground">
+                                        {rule.title}
+                                    </h3>
+                                    <ul className="space-y-2">
+                                        {rule.items.map((item, i) => (
+                                            <li key={i} className="text-sm text-muted-foreground leading-relaxed flex items-start gap-2">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-primary/20 mt-1.5 shrink-0" />
+                                                <span>{item}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
                             </div>
-                            <div className="flex-1">
-                                <h3 className="font-display text-lg font-semibold mb-3">
-                                    {rule.title}
-                                </h3>
-                                <ul className="space-y-2">
-                                    {rule.items.map((item, i) => (
-                                        <li key={i} className="text-sm text-background/70 leading-relaxed flex items-start gap-2">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-primary/50 mt-1.5 shrink-0" />
-                                            <span>{item}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </div>
         </section>

@@ -9,7 +9,7 @@ interface SEOProps {
 }
 
 export function SEO({
-    title = "Best Girls Hostel in Lakhey Hazaribagh, Jharkhand | Yashoda bhavan",
+    title = "Yashoda bhavan|Best Girls Hostel in Lakhey Hazaribagh, Jharkhand | Best room for girls ",
     description = "Yashoda bhavan offers the best girls hostel and PG accommodation in Lakhey, Hazaribagh. Safe, secure, and affordable student living with premium amenities.",
     keywords = "girls hostel, ladies pg, student accommodation, lakhey hazaribagh, best girls hostel jharkhand, yashoda bhavan, safe girls hostel",
     name = "Yashoda bhavan",
