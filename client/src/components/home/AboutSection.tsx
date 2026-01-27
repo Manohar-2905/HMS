@@ -60,7 +60,7 @@ export function AboutSection() {
 
                                 <div className="space-y-1">
                                     <h4 className="font-display text-2xl font-bold text-foreground">Mr. Binay Kumar</h4>
-                                    <p className="text-primary font-semibold text-base tracking-widest uppercase">Founder & Owner</p>
+                                    <p className="text-primary font-semibold text-base tracking-widest uppercase"> Owner</p>
                                 </div>
                             </div>
                         </div>

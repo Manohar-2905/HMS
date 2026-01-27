@@ -16,6 +16,7 @@ app.use(helmet({
             ...helmet.contentSecurityPolicy.getDefaultDirectives(),
             "img-src": ["'self'", "data:", "https:", "http:"],
             "script-src": ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            "frame-src": ["'self'", "blob:", "https://docs.google.com"],
         },
     },
 }));
