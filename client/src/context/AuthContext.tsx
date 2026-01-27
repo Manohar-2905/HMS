@@ -15,6 +15,11 @@ interface User {
     paidAmount?: number;
     remainingAmount?: number;
     photo?: string;
+    paymentHistory?: Array<{
+        amount: number;
+        date: string;
+        remarks: string;
+    }>;
 }
 
 interface AuthContextType {

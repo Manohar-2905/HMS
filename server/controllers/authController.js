@@ -612,6 +612,7 @@ const getUserProfile = async (req, res) => {
             totalAmount: user.totalAmount,
             paidAmount: user.paidAmount,
             remainingAmount: user.remainingAmount,
+            paymentHistory: user.paymentHistory
         });
     } else {
         res.status(404).json({ message: 'User not found' });

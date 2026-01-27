@@ -9,7 +9,7 @@ import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SEO } from '@/components/layout/SEO';
-import { FileText, Lock, User, Wallet, Pencil, Loader2, Calendar, ShieldCheck, UserCircle, ChevronDown, ChevronRight, Folder, Download, Maximize, Bell } from 'lucide-react';
+import { FileText, Lock, User, Wallet, Pencil, Loader2, Calendar, ShieldCheck, UserCircle, ChevronDown, ChevronUp, ChevronRight, Folder, Download, Maximize, Bell } from 'lucide-react';
 import { AttendanceCalendar } from '@/components/dashboard/AttendanceCalendar';
 import toast from 'react-hot-toast';
 
@@ -38,6 +38,7 @@ const UserDashboard = () => {
     useEffect(() => {
         refreshUser();
     }, []);
+    const [showPaymentHistory, setShowPaymentHistory] = useState(false);
     const [notes, setNotes] = useState<Note[]>([]);
     const [noteTitle, setNoteTitle] = useState('');
     const [noteSection, setNoteSection] = useState('');
@@ -347,23 +348,70 @@ const UserDashboard = () => {
                             <div className="space-y-6">
                                 <div className="flex justify-between items-end">
                                     <span className="text-muted-foreground font-medium">Total Fees</span>
-                                    <span className="text-2xl font-bold font-display">${user?.totalAmount}</span>
+                                    <span className="text-2xl font-bold font-display">₹{user?.totalAmount}</span>
                                 </div>
                                 <div className="flex justify-between items-end">
                                     <span className="text-muted-foreground font-medium">Amount Paid</span>
-                                    <span className="text-2xl font-bold font-display text-green-500">${user?.paidAmount}</span>
+                                    <span className="text-2xl font-bold font-display text-green-500">₹{user?.paidAmount}</span>
                                 </div>
                                 <div className="pt-4 border-t border-border">
                                     <div className="flex justify-between items-end">
-                                        <span className="text-primary font-bold">Outstanding</span>
+                                        <span className="text-primary font-bold">Due</span>
                                         <div className="text-right">
-                                            <span className="text-3xl font-bold font-display text-primary">${user?.remainingAmount}</span>
+                                            <span className="text-3xl font-bold font-display text-primary">₹{user?.remainingAmount}</span>
                                             <p className="text-[10px] uppercase tracking-tighter text-muted-foreground mt-1">Due for current session</p>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* Payment History Card - Full Width below row 1 */}
+                        {user?.paymentHistory && user.paymentHistory.length > 0 && (
+                            <div className="lg:col-span-3 bg-card border border-border/50 rounded-2xl p-8 shadow-xl transition-all hover:shadow-2xl">
+                                <button
+                                    onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+                                    className="w-full flex justify-between items-center group hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                                >
+                                    <h3 className="text-xl font-bold flex items-center gap-3 text-primary">
+                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                                            <FileText className="w-5 h-5" />
+                                        </div>
+                                        Payment History
+                                        <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs ml-1 border border-primary/20">
+                                            {user.paymentHistory.length}
+                                        </span>
+                                    </h3>
+                                    {showPaymentHistory ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                                </button>
+
+                                {showPaymentHistory && (
+                                    <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                        {[...user.paymentHistory].reverse().map((payment: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-center bg-muted/30 p-4 rounded-xl border border-border/30 hover:border-primary/30 transition-colors group">
+                                                <div className="flex gap-4 items-center">
+                                                    <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-lg ring-4 ring-white shadow-sm border border-green-100">
+                                                        ₹
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-black text-xl text-foreground tracking-tight">₹{payment.amount}</p>
+                                                        <p className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
+                                                            <Calendar className="w-3 h-3" />
+                                                            {new Date(payment.date).toLocaleDateString()} at {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-[10px] uppercase tracking-widest font-black text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                                                        {payment.remarks || 'Success'}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Study Resources Section */}
@@ -570,7 +618,7 @@ const UserDashboard = () => {
 
                     </div>
                 </div>
-            </main>
+            </main >
 
             <Footer />
 
@@ -682,7 +730,7 @@ const UserDashboard = () => {
                     })()}
                 </div>
             </Modal>
-        </div>
+        </div >
     );
 };
 
