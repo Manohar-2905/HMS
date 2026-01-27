@@ -14,13 +14,14 @@ import { Modal } from '@/components/ui/Modal';
 // Removed react-pdf imports - using Google Docs Viewer instead (like CA website)
 import { ChangePasswordForm } from '@/components/auth/ChangePasswordForm';
 import { AttendanceCalendar } from '@/components/dashboard/AttendanceCalendar';
+import { StudentIdCard } from '@/components/dashboard/StudentIdCard';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils';
 
 const AdminDashboard = () => {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes' | 'attendance' | 'gallery' | 'events'>('users');
+    const [activeTab, setActiveTab] = useState<'users' | 'rooms' | 'notes' | 'attendance' | 'gallery' | 'events' | 'ids'>('users');
     const [users, setUsers] = useState<any[]>([]);
     const [rooms, setRooms] = useState<any[]>([]);
     const [notes, setNotes] = useState<any[]>([]);
@@ -817,6 +818,16 @@ const AdminDashboard = () => {
                                         >
                                             <Bell className="w-4 h-4 mr-2" /> Events
                                         </Button>
+                                        <Button
+                                            variant={activeTab === 'ids' ? 'default' : 'outline'}
+                                            onClick={() => setActiveTab('ids')}
+                                            className={cn(
+                                                "rounded-xl lg:rounded-full shadow-lg h-11 px-6 transition-all duration-300 whitespace-nowrap",
+                                                activeTab === 'ids' ? "bg-white text-primary hover:bg-white/90" : "bg-transparent text-white border-white/10 hover:bg-white/10"
+                                            )}
+                                        >
+                                            <UserCircle className="w-4 h-4 mr-2" /> Student IDs
+                                        </Button>
                                     </div>
                                 </div>
                                 {/* Mobile Scroll Hint */}
@@ -1533,6 +1544,25 @@ const AdminDashboard = () => {
                                         <div className="py-20 text-center border-2 border-dashed border-border/50 rounded-3xl">
                                             <Bell className="w-12 h-12 text-muted-foreground m-auto mb-4 opacity-20" />
                                             <p className="text-muted-foreground">No events created yet.</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'ids' && (
+                            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center mb-8">
+                                    <h2 className="text-2xl font-bold font-display text-primary">Student Identity Cards</h2>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 justify-items-center">
+                                    {users.filter(u => u.role === 'user').map(user => (
+                                        <StudentIdCard key={user._id} user={user} />
+                                    ))}
+                                    {users.filter(u => u.role === 'user').length === 0 && (
+                                        <div className="col-span-full py-20 text-center border-2 border-dashed border-border/50 rounded-3xl w-full">
+                                            <UserCircle className="w-12 h-12 text-muted-foreground m-auto mb-4 opacity-20" />
+                                            <p className="text-muted-foreground">No students found.</p>
                                         </div>
                                     )}
                                 </div>
