@@ -37,7 +37,7 @@ const sendEmail = async (options) => {
         const transporter = createSmtpTransporter();
 
         const message = {
-            from: `${process.env.FROM_NAME || 'Yashoda Bhawan'} <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
+            from: `"${process.env.FROM_NAME || 'Yashoda Bhavan'}" <${process.env.FROM_EMAIL || process.env.EMAIL_USER}>`,
             to: options.email,
             subject: options.subject,
             text: options.message,
