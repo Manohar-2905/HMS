@@ -137,8 +137,8 @@ export const StudentIdCard: React.FC<StudentIdCardProps> = ({ user }) => {
                             {/* Col 2 */}
                             <div className="flex flex-col justify-end w-[35%]">
                                 <div className="mb-3">
-                                    <p className="text-[10px] font-bold text-[#8B0000] uppercase leading-none mb-1">ADDRESS:</p>
-                                    <p className="text-[12px] font-bold text-black leading-tight line-clamp-2">{user.address}</p>
+                                    <p className="text-[10px] font-bold text-[#8B0000] uppercase leading-none mb-1.5">ADDRESS:</p>
+                                    <p className="text-[12px] font-bold text-black leading-normal pt-0.5">{user.address}</p>
                                 </div>
                                 <div>
                                     <p className="text-[10px] font-bold text-[#8B0000] uppercase leading-none mb-1">FATHER'S CONTACT:</p>

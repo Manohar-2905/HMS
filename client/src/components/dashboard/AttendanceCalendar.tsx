@@ -64,12 +64,21 @@ export function AttendanceCalendar({ userId, token, className }: AttendanceCalen
   const totalDays = daysInMonth(month, year);
   const firstDay = firstDayOfMonth(month, year);
 
+  const formatDateLocal = (y: number, m: number, d: number) => {
+    return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  };
+
   const getStatusForDay = (day: number) => {
-    const dateString = new Date(year, month, day).toISOString().split('T')[0];
+    const dateString = formatDateLocal(year, month, day);
     const record = attendance.find(r => r.date.startsWith(dateString));
 
     // If the date is in the future, return null
-    if (new Date(year, month, day) > new Date()) return null;
+    // Create local comparison dates to avoid timezone shifts
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(year, month, day);
+
+    if (checkDate > today) return null;
 
     return record ? record.status : 'Present'; // Default to Present as per requirements
   };

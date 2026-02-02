@@ -1,11 +1,11 @@
 const express = require('express');
 const dotenv = require('dotenv');
+dotenv.config();
+
 const cors = require('cors');
 const helmet = require('helmet');
-const connectDB = require('./config/db');
+const { connectDB } = require('./config/db');
 const path = require('path');
-
-dotenv.config();
 
 const app = express();
 
@@ -63,6 +63,7 @@ const invoiceRoutes = require('./routes/invoiceRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const galleryRoutes = require('./routes/galleryRoutes');
 const eventRoutes = require('./routes/eventRoutes');
+const settingRoutes = require('./routes/settingRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
@@ -72,6 +73,7 @@ app.use('/api/invoice', invoiceRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/gallery', galleryRoutes);
 app.use('/api/events', eventRoutes);
+app.use('/api/settings', settingRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Serve static assets in production

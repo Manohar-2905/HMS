@@ -61,9 +61,16 @@ export function Footer() {
                     <div>
                         <h4 className="font-display text-lg font-semibold mb-4">Contact Us</h4>
                         <ul className="space-y-4">
-                            <li className="flex items-start gap-3">
-                                <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                                <span className="text-background/70 text-sm">Lakhey, Hazaribagh, Jharkhand 825301</span>
+                            <li className="flex items-start gap-3 group/map">
+                                <MapPin className="w-5 h-5 text-primary shrink-0 mt-0.5 group-hover/map:animate-bounce" />
+                                <a
+                                    href="https://maps.app.goo.gl/AHyXzA4pm97EhK8C7"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-background/70 text-sm hover:text-primary transition-colors cursor-pointer"
+                                >
+                                    Lakhey, Hazaribagh, Jharkhand 825301
+                                </a>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Phone className="w-5 h-5 text-primary shrink-0" />

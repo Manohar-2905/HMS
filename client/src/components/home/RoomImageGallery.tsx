@@ -12,10 +12,20 @@ interface RoomImageGalleryProps {
 }
 
 export function RoomImageGallery({ images }: RoomImageGalleryProps) {
-    // Use provided images, or a fallback placeholder if none exist
-    const displayImages = images.length > 0
-        ? images
-        : ["https://placehold.co/600x400?text=No+Images+Uploaded"];
+    const displayImages = (() => {
+        if (!images) return ["https://placehold.co/600x400?text=No+Images+Uploaded"];
+        let parsedImages = images;
+        if (typeof images === 'string') {
+            try {
+                parsedImages = JSON.parse(images);
+            } catch (e) {
+                parsedImages = [images];
+            }
+        }
+        return Array.isArray(parsedImages) && parsedImages.length > 0
+            ? parsedImages
+            : ["https://placehold.co/600x400?text=No+Images+Uploaded"];
+    })();
 
     return (
         <div className="relative w-full h-[300px] md:h-[450px]">

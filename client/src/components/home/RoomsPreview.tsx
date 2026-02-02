@@ -11,6 +11,20 @@ export function RoomsPreview() {
     const [rooms, setRooms] = useState<any[]>([]);
     const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
 
+    const getRoomImages = (images: any): string[] => {
+        if (!images) return [];
+        if (Array.isArray(images)) return images;
+        if (typeof images === 'string') {
+            try {
+                const parsed = JSON.parse(images);
+                return Array.isArray(parsed) ? parsed : [images];
+            } catch (e) {
+                return [images];
+            }
+        }
+        return [];
+    };
+
     useEffect(() => {
         const fetchRooms = async () => {
             try {
@@ -54,7 +68,7 @@ export function RoomsPreview() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {rooms.map((room, index) => (
                         <div
-                            key={room._id}
+                            key={room.id}
                             className="group rounded-2xl overflow-hidden bg-gradient-to-br from-card to-secondary/30 border border-border/50 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 cursor-pointer"
                             style={{ animationDelay: `${index * 150}ms` }}
                             onClick={() => setSelectedRoom(room)}
@@ -62,7 +76,7 @@ export function RoomsPreview() {
                             {/* Image */}
                             <div className="relative h-64 overflow-hidden shrink-0">
                                 <img
-                                    src={room.images?.[0] || `https://placehold.co/600x400?text=${room.roomName}`}
+                                    src={getRoomImages(room.images)?.[0] || `https://placehold.co/600x400?text=${room.roomName}`}
                                     alt={room.roomName}
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                 />
@@ -71,11 +85,6 @@ export function RoomsPreview() {
                                     <div className="flex items-baseline gap-1">
                                         <span className="font-display text-2xl font-bold text-white">₹{room.roomCost}</span>
                                         <span className="text-sm text-gray-200">/month</span>
-                                    </div>
-                                </div>
-                                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <div className="bg-white/20 backdrop-blur-md p-2 rounded-full">
-                                        <Eye className="w-5 h-5 text-white" />
                                     </div>
                                 </div>
                                 <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -134,7 +143,7 @@ export function RoomsPreview() {
                 {selectedRoom && (
                     <div className="space-y-4">
                         <RoomImageGallery
-                            images={selectedRoom.images || []}
+                            images={getRoomImages(selectedRoom.images)}
                         />
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-xl text-center">
                             <div>

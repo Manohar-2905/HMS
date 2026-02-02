@@ -1,5 +1,27 @@
+import { useState, useEffect } from "react";
+import api from "@/api/axios";
+import { Loader2 } from "lucide-react";
 
 export function AboutSection() {
+    const [userCount, setUserCount] = useState<number | null>(null);
+
+    useEffect(() => {
+        const fetchUserCount = async () => {
+            try {
+                const { data } = await api.get('/api/auth/user-count');
+                setUserCount(data.count);
+            } catch (error) {
+                console.error('Error fetching user count:', error);
+            }
+        };
+        fetchUserCount();
+    }, []);
+
+    const foundationYear = 2025;
+    const currentYear = new Date().getFullYear();
+    const yearsOfTrust = Math.max(1, currentYear - foundationYear + 1);
+    const happyResidentsCount = userCount !== null ? 51 + userCount : null;
+
     return (
         <section className="py-16 md:py-24 bg-secondary/30 relative overflow-hidden">
             <div className="container mx-auto px-4 relative z-10">
@@ -27,11 +49,13 @@ export function AboutSection() {
 
                         <div className="flex gap-8 pt-4">
                             <div>
-                                <div className="font-display text-4xl font-bold text-primary mb-1">10+</div>
+                                <div className="font-display text-4xl font-bold text-primary mb-1">{yearsOfTrust}+</div>
                                 <div className="text-sm text-muted-foreground uppercase tracking-wide">Years of Trust</div>
                             </div>
                             <div>
-                                <div className="font-display text-4xl font-bold text-primary mb-1">500+</div>
+                                <div className="font-display text-4xl font-bold text-primary mb-1">
+                                    {happyResidentsCount !== null ? `${happyResidentsCount}+` : <Loader2 className="w-5 h-5 animate-spin inline-block text-primary" />}
+                                </div>
                                 <div className="text-sm text-muted-foreground uppercase tracking-wide">Happy Residents</div>
                             </div>
                         </div>

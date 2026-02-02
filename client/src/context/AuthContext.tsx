@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import api from '../api/axios';
 
 interface User {
-    _id: string;
+    id: string;
     name: string;
     email: string;
     role: 'admin' | 'user';
@@ -15,6 +15,14 @@ interface User {
     paidAmount?: number;
     remainingAmount?: number;
     photo?: string;
+    university?: string;
+    registrationNo?: string;
+    dob?: string;
+    fatherName?: string;
+    fatherPhone?: string;
+    motherName?: string;
+    motherPhone?: string;
+    visitors?: string[];
     paymentHistory?: Array<{
         amount: number;
         date: string;

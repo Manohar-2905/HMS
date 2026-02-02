@@ -34,6 +34,19 @@ const AdminDashboard = () => {
         id: string | null;
     }>({ isOpen: false, type: null, id: null });
 
+    const getRoomImages = (images: any): string[] => {
+        if (!images) return [];
+        if (Array.isArray(images)) return images;
+        if (typeof images === 'string') {
+            try {
+                const parsed = JSON.parse(images);
+                return Array.isArray(parsed) ? parsed : [images];
+            } catch (e) {
+                return [images];
+            }
+        }
+        return [];
+    };
     // PDF Preview State
     const [pdfPreview, setPdfPreview] = useState<{
         isOpen: boolean;
@@ -74,17 +87,19 @@ const AdminDashboard = () => {
     const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split('T')[0]);
 
     // Forms
-    const [newUser, setNewUser] = useState({
+    const [newUser, setNewUser] = useState<any>({
         name: '', email: '', password: '', role: 'user', phone: '', address: '', roomType: '',
-        totalAmount: 0, paidAmount: 0,
+        totalAmount: '', paidAmount: '',
         dob: '', fatherName: '', fatherOccupation: '', fatherPhone: '',
-        motherName: '', motherPhone: '', aadharNo: '',
-        visitors: ['', '', '', ''], // 4 slots
+        motherName: '', bloodGroup: '', aadharNo: '',
+        visitors: ['', '', ''], // 3 slots
         university: '', registrationNo: ''
     });
     const [userPhoto, setUserPhoto] = useState<File | null>(null);
+    const [isAdminOtpSent, setIsAdminOtpSent] = useState(false);
+    const [adminRegOtp, setAdminRegOtp] = useState('');
 
-    const [newRoom, setNewRoom] = useState({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
+    const [newRoom, setNewRoom] = useState<any>({ roomName: '', roomCost: '', roomDetails: '', images: '', beds: '', capacity: '', size: '100 sq ft' });
     const [roomFiles, setRoomFiles] = useState<File[]>([]);
     const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
     const [noteTitle, setNoteTitle] = useState('');
@@ -178,8 +193,8 @@ const AdminDashboard = () => {
             const createPromise = api.post('/api/auth/register', formData, config);
 
             toast.promise(createPromise, {
-                loading: 'Registering user...',
-                success: 'User registered successfully!',
+                loading: 'Registering user & sending verification code...',
+                success: 'Verification code sent to student email!',
                 error: (err) => {
                     const msg = err.response?.data?.message || err.message || 'Error creating user';
                     return msg;
@@ -187,22 +202,53 @@ const AdminDashboard = () => {
             });
 
             await createPromise;
-            setNewUser({
-                name: '', email: '', password: '', role: 'user', phone: '', address: '', roomType: 'Unassigned',
-                totalAmount: 0, paidAmount: 0,
-                dob: '', fatherName: '', fatherOccupation: '', fatherPhone: '',
-                motherName: '', motherPhone: '', aadharNo: '',
-                visitors: ['', '', '', ''],
-                university: '', registrationNo: ''
-            });
-            setUserPhoto(null);
-            fetchData();
+            setIsAdminOtpSent(true);
         } catch (error: any) {
             console.error(error);
             if (error.response?.status === 401) {
                 logout();
                 navigate('/');
             }
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyAdminRegOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        try {
+            const token = user?.token;
+            const config = { headers: { Authorization: `Bearer ${token}` } };
+
+            const verifyPromise = api.post('/api/auth/verify-registration-otp', {
+                email: newUser.email,
+                otp: adminRegOtp
+            }, config);
+
+            toast.promise(verifyPromise, {
+                loading: 'Verifying code...',
+                success: 'User verified successfully!',
+                error: (err) => err.response?.data?.message || 'Invalid or expired code'
+            });
+
+            await verifyPromise;
+
+            // Success - Reset form
+            setNewUser({
+                name: '', email: '', password: '', role: 'user', phone: '', address: '', roomType: 'Unassigned',
+                totalAmount: '', paidAmount: '',
+                dob: '', fatherName: '', fatherOccupation: '', fatherPhone: '',
+                motherName: '', bloodGroup: '', aadharNo: '',
+                visitors: ['', '', ''],
+                university: '', registrationNo: ''
+            });
+            setUserPhoto(null);
+            setIsAdminOtpSent(false);
+            setAdminRegOtp('');
+            fetchData();
+        } catch (error: any) {
+            console.error(error);
         } finally {
             setIsLoading(false);
         }
@@ -316,10 +362,10 @@ const AdminDashboard = () => {
             const config = { headers: { Authorization: `Bearer ${token}` } };
             const formData = new FormData();
             formData.append('roomName', newRoom.roomName);
-            formData.append('roomCost', String(newRoom.roomCost));
+            formData.append('roomCost', String(newRoom.roomCost || 0));
             formData.append('roomDetails', newRoom.roomDetails);
-            formData.append('beds', String(newRoom.beds));
-            formData.append('capacity', String(newRoom.capacity));
+            formData.append('beds', String(newRoom.beds || 0));
+            formData.append('capacity', String(newRoom.capacity || 0));
             formData.append('size', newRoom.size);
             if (roomFiles.length > 0) {
                 roomFiles.forEach(file => {
@@ -338,7 +384,7 @@ const AdminDashboard = () => {
             });
 
             await roomPromise;
-            setNewRoom({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
+            setNewRoom({ roomName: '', roomCost: '', roomDetails: '', images: '', beds: '', capacity: '', size: '100 sq ft' });
             setRoomFiles([]);
             setEditingRoomId(null);
             fetchData();
@@ -393,7 +439,7 @@ const AdminDashboard = () => {
             capacity: room.capacity || 1,
             size: room.size || '100 sq ft'
         });
-        setEditingRoomId(room._id);
+        setEditingRoomId(room.id);
         setRoomFiles([]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -440,7 +486,7 @@ const AdminDashboard = () => {
             const token = user?.token;
             const config = { headers: { Authorization: `Bearer ${token}` } };
             await api.put(`/api/notes/${id}/approve`, {}, config);
-            setNotes(notes.map(n => n._id === id ? { ...n, isApproved: true } : n));
+            setNotes(notes.map(n => n.id === id ? { ...n, isApproved: true } : n));
             toast.success('Note approved!');
         } catch (error) {
             toast.error('Error approving note');
@@ -548,7 +594,7 @@ const AdminDashboard = () => {
                 payload.remarks = paymentRemarks;
             }
 
-            const updatePromise = api.put(`/api/auth/users/${selectedUser._id}`, payload, config);
+            const updatePromise = api.put(`/api/auth/users/${selectedUser.id}`, payload, config);
 
             toast.promise(updatePromise, {
                 loading: 'Updating user...',
@@ -557,7 +603,7 @@ const AdminDashboard = () => {
             });
 
             const { data } = await updatePromise;
-            setUsers(users.map(u => u._id === data._id ? { ...u, ...data } : u));
+            setUsers(users.map(u => u.id === data.id ? { ...u, ...data } : u));
             setSelectedUser({ ...selectedUser, ...data });
             setIsEditingUser(false);
             setPaymentUpdateAmount('');
@@ -584,7 +630,7 @@ const AdminDashboard = () => {
             fatherName: user.fatherName,
             fatherPhone: user.fatherPhone,
             motherName: user.motherName,
-            motherPhone: user.motherPhone,
+            bloodGroup: user.bloodGroup,
             dob: user.dob ? new Date(user.dob).toISOString().split('T')[0] : '',
             aadharNo: user.aadharNo,
             university: user.university,
@@ -847,133 +893,199 @@ const AdminDashboard = () => {
                                 </div>
 
                                 <form onSubmit={handleCreateUser} className="space-y-8 mb-12 border border-border/50 p-6 lg:p-8 rounded-2xl bg-background/50 shadow-sm">
-                                    {/* Header Section */}
-                                    <div className="flex flex-col md:flex-row justify-between items-start border-b border-border/50 pb-6 gap-6">
-                                        <div>
-                                            <h1 className="text-2xl font-bold text-primary">Yashoda Bhawan</h1>
-                                            <p className="text-sm text-muted-foreground mt-1">LAKHEY, HAZARIBAGH : 825301</p>
-                                        </div>
-                                        <div className="flex flex-col items-center">
-                                            <div className="h-32 w-24 bg-muted border-2 border-dashed border-border flex items-center justify-center relative overflow-hidden rounded-lg group hover:border-primary transition-colors cursor-pointer">
-                                                {userPhoto ? (
-                                                    <img src={URL.createObjectURL(userPhoto)} alt="Preview" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <div className="text-center p-2">
-                                                        <User className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                                                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Upload Photo</span>
-                                                    </div>
-                                                )}
-                                                <Input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    className="absolute inset-0 opacity-0 cursor-pointer h-full"
-                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && setUserPhoto(e.target.files[0])}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Personal Info */}
-                                    <div>
-                                        <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Personal Information</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="md:col-span-2 space-y-2">
-                                                <label className="text-sm font-medium">Full Name <span className="text-red-500">*</span></label>
-                                                <Input value={newUser.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, name: e.target.value })} required className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="md:col-span-2 space-y-2">
-                                                <label className="text-sm font-medium">Address <span className="text-red-500">*</span></label>
-                                                <Input value={newUser.address} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, address: e.target.value })} required className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Date of Birth</label>
-                                                <Input type="date" value={newUser.dob} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, dob: e.target.value })} className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Email <span className="text-red-500">*</span></label>
-                                                <Input type="email" value={newUser.email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, email: e.target.value })} required className="rounded-lg bg-background" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" title="Please enter a valid email address" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Mobile No. <span className="text-red-500">*</span></label>
-                                                <Input type="tel" value={newUser.phone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setNewUser({ ...newUser, phone: val }); }} required className="rounded-lg bg-background" minLength={10} maxLength={10} pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Aadhar No.</label>
-                                                <Input value={newUser.aadharNo} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, aadharNo: e.target.value })} className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Password <span className="text-red-500">*</span></label>
-                                                <Input type="password" value={newUser.password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, password: e.target.value })} required className="rounded-lg bg-background" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Parent Details */}
-                                    <div>
-                                        <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Parent's Details</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Father's Name</label>
-                                                <Input value={newUser.fatherName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, fatherName: e.target.value })} className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Father's Occupation</label>
-                                                <Input value={newUser.fatherOccupation} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, fatherOccupation: e.target.value })} className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Father's Mobile</label>
-                                                <Input type="tel" value={newUser.fatherPhone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setNewUser({ ...newUser, fatherPhone: val }); }} className="rounded-lg bg-background" minLength={10} maxLength={10} pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Mother's Name</label>
-                                                <Input value={newUser.motherName} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, motherName: e.target.value })} className="rounded-lg bg-background" />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-sm font-medium">Mother's Mobile</label>
-                                                <Input type="tel" value={newUser.motherPhone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setNewUser({ ...newUser, motherPhone: val }); }} className="rounded-lg bg-background" minLength={10} maxLength={10} pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Academic Details */}
-                                    <div>
-                                        <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Academic Details</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="md:col-span-2 space-y-2">
-                                                <label className="text-sm font-medium">University / Institution / College</label>
-                                                <Input value={newUser.university} onChange={(e) => setNewUser({ ...newUser, university: e.target.value })} className="rounded-lg bg-background" />
+                                    {isAdminOtpSent ? (
+                                        <div className="space-y-6 max-w-md mx-auto py-8">
+                                            <div className="text-center space-y-2">
+                                                <h3 className="text-xl font-bold font-display text-primary">Verify Student Email</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    A 4-digit verification code has been sent to <span className="font-bold text-foreground">{newUser.email}</span>.
+                                                </p>
                                             </div>
 
-                                        </div>
-                                    </div>
-
-                                    {/* Visitors */}
-                                    <div>
-                                        <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Frequent Visitors</h3>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            {newUser.visitors.map((v, i) => (
-                                                <div key={i} className="space-y-2">
-                                                    <label className="text-sm font-medium">Visitor {i + 1}</label>
+                                            <div className="space-y-4">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Verification Code</label>
                                                     <Input
-                                                        value={v}
-                                                        onChange={(e) => {
-                                                            const newVisitors = [...newUser.visitors];
-                                                            newVisitors[i] = e.target.value;
-                                                            setNewUser({ ...newUser, visitors: newVisitors });
-                                                        }}
-                                                        className="rounded-lg bg-background"
+                                                        required
+                                                        placeholder="0000"
+                                                        className="text-center text-3xl tracking-[15px] h-16 font-mono font-bold"
+                                                        value={adminRegOtp}
+                                                        onChange={(e) => setAdminRegOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                                        maxLength={4}
                                                     />
                                                 </div>
-                                            ))}
+
+                                                <Button onClick={handleVerifyAdminRegOtp} disabled={isLoading || adminRegOtp.length < 4} className="w-full rounded-full shadow-lg h-12 text-lg font-display">
+                                                    {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                                                    Verify & Complete Registration
+                                                </Button>
+
+                                                <Button variant="ghost" className="w-full" onClick={() => setIsAdminOtpSent(false)} disabled={isLoading}>
+                                                    Go Back & Edit Details
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <>
+                                            {/* Header Section */}
+                                            <div className="flex flex-col md:flex-row justify-between items-start border-b border-border/50 pb-6 gap-6">
+                                                <div>
+                                                    <h1 className="text-2xl font-bold text-primary">Yashoda Bhawan</h1>
+                                                    <p className="text-sm text-muted-foreground mt-1">LAKHEY, HAZARIBAGH : 825301</p>
+                                                </div>
+                                                <div className="flex flex-col items-center">
+                                                    <div className="h-32 w-24 bg-muted border-2 border-dashed border-border flex items-center justify-center relative overflow-hidden rounded-lg group hover:border-primary transition-colors cursor-pointer">
+                                                        {userPhoto ? (
+                                                            <img src={URL.createObjectURL(userPhoto)} alt="Preview" className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            <div className="text-center p-2">
+                                                                <User className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                                                                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Upload Photo</span>
+                                                            </div>
+                                                        )}
+                                                        <Input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="absolute inset-0 opacity-0 cursor-pointer h-full"
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => e.target.files && setUserPhoto(e.target.files[0])}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    {/* Room & Payment Section Removed from Form - handled as defaults */}
+                                            {/* Personal Info */}
+                                            <div>
+                                                <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Personal Information</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <label className="text-sm font-medium">Full Name <span className="text-red-500">*</span></label>
+                                                        <Input
+                                                            value={newUser.name}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                                                            required
+                                                            className="rounded-lg bg-background"
+                                                            pattern="[a-zA-Z\s]+"
+                                                            title="Name should only contain alphabets and spaces"
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <label className="text-sm font-medium">Address <span className="text-red-500">*</span></label>
+                                                        <Input value={newUser.address} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, address: e.target.value })} required className="rounded-lg bg-background" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Date of Birth <span className="text-red-500">*</span></label>
+                                                        <Input required type="date" value={newUser.dob} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, dob: e.target.value })} className="rounded-lg bg-background" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Email <span className="text-red-500">*</span></label>
+                                                        <Input type="email" value={newUser.email} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, email: e.target.value })} required className="rounded-lg bg-background" pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" title="Please enter a valid email address" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Mobile No. <span className="text-red-500">*</span></label>
+                                                        <Input type="tel" value={newUser.phone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setNewUser({ ...newUser, phone: val }); }} required className="rounded-lg bg-background" minLength={10} maxLength={10} pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Aadhar No. <span className="text-red-500">*</span></label>
+                                                        <Input
+                                                            required
+                                                            value={newUser.aadharNo}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, aadharNo: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                                                            className="rounded-lg bg-background"
+                                                            minLength={12}
+                                                            maxLength={12}
+                                                            pattern="[0-9]{12}"
+                                                            title="Aadhar number must be 12 digits"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Password <span className="text-red-500">*</span></label>
+                                                        <Input type="password" value={newUser.password} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, password: e.target.value })} required className="rounded-lg bg-background" />
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                                    <Button type="submit" size="lg" className="w-full rounded-full shadow-lg hover:shadow-primary/25" disabled={isLoading}>
-                                        {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                                        Register & Save
-                                    </Button>
+                                            {/* Parent Details */}
+                                            <div>
+                                                <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Parent's Details</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Father's Name <span className="text-red-500">*</span></label>
+                                                        <Input
+                                                            required
+                                                            value={newUser.fatherName}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, fatherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                                                            className="rounded-lg bg-background"
+                                                            pattern="[a-zA-Z\s]+"
+                                                            title="Name should only contain alphabets and spaces"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Father's Occupation</label>
+                                                        <Input value={newUser.fatherOccupation} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, fatherOccupation: e.target.value })} className="rounded-lg bg-background" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Father's Mobile <span className="text-red-500">*</span></label>
+                                                        <Input required type="tel" value={newUser.fatherPhone} onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setNewUser({ ...newUser, fatherPhone: val }); }} className="rounded-lg bg-background" minLength={10} maxLength={10} pattern="[0-9]{10}" title="Phone number must be exactly 10 digits" />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Mother's Name</label>
+                                                        <Input
+                                                            value={newUser.motherName}
+                                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                                                            className="rounded-lg bg-background"
+                                                            pattern="[a-zA-Z\s]+"
+                                                            title="Name should only contain alphabets and spaces"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-sm font-medium">Blood Group</label>
+                                                        <Input placeholder="O+, A+, etc." value={newUser.bloodGroup} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewUser({ ...newUser, bloodGroup: e.target.value })} className="rounded-lg bg-background" />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Academic Details */}
+                                            <div>
+                                                <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Academic Details</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    <div className="md:col-span-2 space-y-2">
+                                                        <label className="text-sm font-medium">University / Institution / College <span className="text-red-500">*</span></label>
+                                                        <Input required value={newUser.university} onChange={(e) => setNewUser({ ...newUser, university: e.target.value })} className="rounded-lg bg-background" />
+                                                    </div>
+
+                                                </div>
+                                            </div>
+
+                                            {/* Visitors */}
+                                            <div>
+                                                <h3 className="font-bold text-lg mb-4 uppercase tracking-wider text-muted-foreground border-b border-border/50 pb-2">Frequent Visitors</h3>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {newUser.visitors.map((v, i) => (
+                                                        <div key={i} className="space-y-2">
+                                                            <label className="text-sm font-medium">Visitor {i + 1} {i < 3 && <span className="text-red-500">*</span>}</label>
+                                                            <Input
+                                                                required={i < 3}
+                                                                value={v}
+                                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                    const newVisitors = [...newUser.visitors];
+                                                                    newVisitors[i] = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                                                    setNewUser({ ...newUser, visitors: newVisitors });
+                                                                }}
+                                                                className="rounded-lg bg-background"
+                                                                pattern="[a-zA-Z\s]+"
+                                                                title="Name should only contain alphabets and spaces"
+                                                            />
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            <Button type="submit" size="lg" className="w-full rounded-full shadow-lg hover:shadow-primary/25" disabled={isLoading}>
+                                                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                                                Register & Send Verification Code
+                                            </Button>
+                                        </>
+                                    )}
                                 </form>
 
                                 {pendingUsers.length > 0 && (
@@ -984,7 +1096,7 @@ const AdminDashboard = () => {
                                         </h2>
                                         <div className="space-y-4">
                                             {pendingUsers.map(u => (
-                                                <div key={u._id} className="flex flex-col md:flex-row justify-between items-center bg-orange-50/50 border border-orange-200 p-4 rounded-xl shadow-sm gap-4">
+                                                <div key={u.id} className="flex flex-col md:flex-row justify-between items-center bg-orange-50/50 border border-orange-200 p-4 rounded-xl shadow-sm gap-4">
                                                     <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => openUserDetails(u)}>
                                                         <div className="h-12 w-12 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
                                                             {u.photo ? <img src={u.photo} alt={u.name} className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-muted-foreground" />}
@@ -996,10 +1108,10 @@ const AdminDashboard = () => {
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2 w-full md:w-auto">
-                                                        <Button size="sm" onClick={() => handleApproveUser(u._id)} className="rounded-full bg-green-600 hover:bg-green-700 flex-1 md:flex-none">
+                                                        <Button size="sm" onClick={() => handleApproveUser(u.id)} className="rounded-full bg-green-600 hover:bg-green-700 flex-1 md:flex-none">
                                                             <Check className="w-4 h-4 mr-2" /> Approve
                                                         </Button>
-                                                        <Button size="sm" variant="outline" onClick={() => handleRejectUser(u._id)} className="rounded-full flex-1 md:flex-none">
+                                                        <Button size="sm" variant="outline" onClick={() => handleRejectUser(u.id)} className="rounded-full flex-1 md:flex-none">
                                                             <X className="w-4 h-4 mr-2" /> Reject
                                                         </Button>
                                                     </div>
@@ -1012,7 +1124,7 @@ const AdminDashboard = () => {
                                 <h2 className="text-xl font-bold mb-6 font-display">Registered Students</h2>
                                 <div className="space-y-4">
                                     {users.map(u => (
-                                        <div key={u._id} className="flex flex-col md:flex-row justify-between items-center bg-card border border-border/50 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow gap-4">
+                                        <div key={u.id} className="flex flex-col md:flex-row justify-between items-center bg-card border border-border/50 p-4 rounded-xl shadow-sm hover:shadow-md transition-shadow gap-4">
                                             <div className="flex items-center gap-4 w-full md:w-auto cursor-pointer" onClick={() => openUserDetails(u)}>
                                                 <div className="h-12 w-12 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
                                                     {u.photo ? <img src={u.photo} alt={u.name} className="w-full h-full object-cover" /> : <User className="w-6 h-6 text-muted-foreground" />}
@@ -1033,10 +1145,10 @@ const AdminDashboard = () => {
                                                     <Button size="sm" variant="outline" className="rounded-full" onClick={() => { setSelectedUser(u); setIsUserModalOpen(true); setIsEditingUser(false); }}>
                                                         View
                                                     </Button>
-                                                    <Button size="sm" variant="outline" onClick={() => { setSelectedInvoiceUser(u._id); setIsDatePickerOpen(true); }} className="rounded-full">
+                                                    <Button size="sm" variant="outline" onClick={() => { setSelectedInvoiceUser(u.id); setIsDatePickerOpen(true); }} className="rounded-full">
                                                         <Download className="w-4 h-4" />
                                                     </Button>
-                                                    <Button size="sm" variant="destructive" className="rounded-full" onClick={() => setDeleteConfirm({ isOpen: true, type: 'user', id: u._id })}>
+                                                    <Button size="sm" variant="destructive" className="rounded-full" onClick={() => setDeleteConfirm({ isOpen: true, type: 'user', id: u.id })}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
                                                 </div>
@@ -1061,7 +1173,7 @@ const AdminDashboard = () => {
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Cost per Month (₹)</label>
-                                        <Input type="number" placeholder="0" value={newRoom.roomCost} onChange={(e) => setNewRoom({ ...newRoom, roomCost: Number(e.target.value) })} className="rounded-lg bg-background" />
+                                        <Input type="number" placeholder="0" value={newRoom.roomCost} onChange={(e) => setNewRoom({ ...newRoom, roomCost: e.target.value === '' ? '' : Number(e.target.value) })} className="rounded-lg bg-background" />
                                     </div>
                                     <div className="space-y-2 md:col-span-2">
                                         <label className="text-sm font-medium">Room Details</label>
@@ -1070,11 +1182,11 @@ const AdminDashboard = () => {
 
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Number of Beds</label>
-                                        <Input type="number" placeholder="1" value={newRoom.beds} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, beds: Number(e.target.value) })} className="rounded-lg bg-background" />
+                                        <Input type="number" placeholder="1" value={newRoom.beds} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, beds: e.target.value === '' ? '' : Number(e.target.value) })} className="rounded-lg bg-background" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Capacity (Persons)</label>
-                                        <Input type="number" placeholder="1" value={newRoom.capacity} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, capacity: Number(e.target.value) })} className="rounded-lg bg-background" />
+                                        <Input type="number" placeholder="1" value={newRoom.capacity} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewRoom({ ...newRoom, capacity: e.target.value === '' ? '' : Number(e.target.value) })} className="rounded-lg bg-background" />
                                     </div>
                                     <div className="space-y-2">
                                         <label className="text-sm font-medium">Room Size</label>
@@ -1115,7 +1227,7 @@ const AdminDashboard = () => {
                                                 {editingRoomId && (
                                                     <Button variant="ghost" onClick={() => {
                                                         setEditingRoomId(null);
-                                                        setNewRoom({ roomName: '', roomCost: 0, roomDetails: '', images: '', beds: 1, capacity: 1, size: '100 sq ft' });
+                                                        setNewRoom({ roomName: '', roomCost: '', roomDetails: '', images: '', beds: '', capacity: '', size: '100 sq ft' });
                                                         setRoomFiles([]);
                                                     }} className="rounded-full">Cancel</Button>
                                                 )}
@@ -1126,10 +1238,10 @@ const AdminDashboard = () => {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                     {rooms.map((r: any) => (
-                                        <div key={r._id} className="group bg-card rounded-2xl overflow-hidden shadow-lg border border-border/50 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                                        <div key={r.id} className="group bg-card rounded-2xl overflow-hidden shadow-lg border border-border/50 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
                                             <div className="relative h-48 w-full overflow-hidden">
                                                 <img
-                                                    src={r.images && r.images.length > 0 ? r.images[0] : 'https://placehold.co/600x400'}
+                                                    src={getRoomImages(r.images).length > 0 ? getRoomImages(r.images)[0] : 'https://placehold.co/600x400'}
                                                     alt={r.roomName}
                                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                                 />
@@ -1149,7 +1261,7 @@ const AdminDashboard = () => {
                                                     <Button variant="outline" size="sm" className="flex-1 rounded-full" onClick={() => handleEditRoom(r)}>
                                                         <Edit3 className="w-4 h-4 mr-2" /> Edit
                                                     </Button>
-                                                    <Button variant="destructive" size="sm" className="flex-1 rounded-full" onClick={() => deleteRoom(r._id)}>
+                                                    <Button variant="destructive" size="sm" className="flex-1 rounded-full" onClick={() => deleteRoom(r.id)}>
                                                         <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                     </Button>
                                                 </div>
@@ -1289,7 +1401,7 @@ const AdminDashboard = () => {
                                                                     {expandedSections[secId] && (
                                                                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-left-2 duration-200">
                                                                             {secNotes.map(n => (
-                                                                                <div key={n._id} className="group flex items-center justify-between p-4 bg-background border border-border/60 rounded-2xl hover:border-primary/40 hover:shadow-lg transition-all relative overflow-hidden">
+                                                                                <div key={n.id} className="group flex items-center justify-between p-4 bg-background border border-border/60 rounded-2xl hover:border-primary/40 hover:shadow-lg transition-all relative overflow-hidden">
                                                                                     <div className="flex items-center gap-3">
                                                                                         <div className="p-2 bg-muted rounded-xl text-muted-foreground group-hover:text-primary transition-colors">
                                                                                             <FileText className="w-5 h-5" />
@@ -1301,17 +1413,17 @@ const AdminDashboard = () => {
                                                                                     </div>
                                                                                     <div className="flex items-center gap-1">
                                                                                         {!n.isApproved && (
-                                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-green-600" onClick={(e: React.MouseEvent) => handleApproveNote(n._id, e)}>
+                                                                                            <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-green-600" onClick={(e: React.MouseEvent) => handleApproveNote(n.id, e)}>
                                                                                                 <Check className="w-4 h-4" />
                                                                                             </Button>
                                                                                         )}
-                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n._id })}>
+                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full" onClick={() => setPdfPreview({ isOpen: true, url: n.pdfUrl, title: n.title, noteId: n.id })}>
                                                                                             <Maximize className="w-3.5 h-3.5" />
                                                                                         </Button>
-                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-primary" onClick={() => handleProxyDownload(n._id, n.title)}>
+                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-primary" onClick={() => handleProxyDownload(n.id, n.title)}>
                                                                                             <Download className="w-3.5 h-3.5" />
                                                                                         </Button>
-                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive" onClick={() => handleDeleteNote(n._id)}>
+                                                                                        <Button size="icon" variant="ghost" className="h-8 w-8 rounded-full text-destructive" onClick={() => handleDeleteNote(n.id)}>
                                                                                             <Trash2 className="w-3.5 h-3.5" />
                                                                                         </Button>
                                                                                     </div>
@@ -1362,7 +1474,7 @@ const AdminDashboard = () => {
                                             {attendanceRecords.map((record) => {
                                                 const student = record.user;
                                                 return (
-                                                    <tr key={student._id} className="hover:bg-muted/10 transition-colors">
+                                                    <tr key={student.id} className="hover:bg-muted/10 transition-colors">
                                                         <td className="px-4 py-4">
                                                             <div
                                                                 className="flex items-center gap-3 cursor-pointer group"
@@ -1393,7 +1505,7 @@ const AdminDashboard = () => {
                                                                     variant={record.status === 'Present' ? "default" : "outline"}
                                                                     size="sm"
                                                                     className={cn("h-8 px-3 rounded-full text-[10px] font-bold", record.status === 'Present' && "bg-emerald-600 hover:bg-emerald-700")}
-                                                                    onClick={() => handleMarkAttendance(student._id, 'Present')}
+                                                                    onClick={() => handleMarkAttendance(student.id, 'Present')}
                                                                 >
                                                                     {record.status === 'Present' && <Check className="w-3 h-3 mr-1" />}
                                                                     Present
@@ -1402,7 +1514,7 @@ const AdminDashboard = () => {
                                                                     variant={record.status === 'Absent' ? "destructive" : "outline"}
                                                                     size="sm"
                                                                     className="h-8 px-3 rounded-full text-[10px] font-bold"
-                                                                    onClick={() => handleMarkAttendance(student._id, 'Absent')}
+                                                                    onClick={() => handleMarkAttendance(student.id, 'Absent')}
                                                                 >
                                                                     {record.status === 'Absent' && <X className="w-3 h-3 mr-1" />}
                                                                     Absent
@@ -1414,7 +1526,7 @@ const AdminDashboard = () => {
                                                                         "h-8 px-3 rounded-full text-[10px] font-bold",
                                                                         record.status === 'Leave' ? "bg-amber-500 hover:bg-amber-600 text-white" : "text-amber-600 hover:bg-amber-50 border-amber-200"
                                                                     )}
-                                                                    onClick={() => handleMarkAttendance(student._id, 'Leave')}
+                                                                    onClick={() => handleMarkAttendance(student.id, 'Leave')}
                                                                 >
                                                                     Leave
                                                                 </Button>
@@ -1425,7 +1537,7 @@ const AdminDashboard = () => {
                                                                     onClick={() => {
                                                                         setBulkData({
                                                                             ...bulkData,
-                                                                            userId: student._id,
+                                                                            userId: student.id,
                                                                             userName: student.name,
                                                                             startDate: attendanceDate
                                                                         });
@@ -1472,7 +1584,7 @@ const AdminDashboard = () => {
 
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {gallery.map((item) => (
-                                        <div key={item._id} className="group relative bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all aspect-square">
+                                        <div key={item.id} className="group relative bg-card rounded-2xl overflow-hidden border border-border/50 shadow-md hover:shadow-xl transition-all aspect-square">
                                             <img src={item.image} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4">
                                                 <p className="text-white font-bold truncate text-sm">{item.title}</p>
@@ -1480,7 +1592,7 @@ const AdminDashboard = () => {
                                             </div>
                                             <button
                                                 type="button"
-                                                onClick={() => setDeleteConfirm({ isOpen: true, type: 'gallery', id: item._id })}
+                                                onClick={() => setDeleteConfirm({ isOpen: true, type: 'gallery', id: item.id })}
                                                 className="absolute top-4 right-4 bg-red-600/90 hover:bg-red-600 p-2 rounded-full text-white opacity-0 group-hover:opacity-100 transition-all shadow-lg"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -1519,7 +1631,7 @@ const AdminDashboard = () => {
 
                                 <div className="space-y-6">
                                     {events.map((event) => (
-                                        <div key={event._id} className="flex flex-col md:flex-row gap-6 bg-card p-6 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
+                                        <div key={event.id} className="flex flex-col md:flex-row gap-6 bg-card p-6 rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-all group">
                                             {event.image && (
                                                 <div className="w-full md:w-60 h-40 rounded-xl overflow-hidden shadow-inner flex-shrink-0">
                                                     <img src={event.image} alt={event.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
@@ -1542,7 +1654,7 @@ const AdminDashboard = () => {
                                                         type="button"
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() => setDeleteConfirm({ isOpen: true, type: 'event', id: event._id })}
+                                                        onClick={() => setDeleteConfirm({ isOpen: true, type: 'event', id: event.id })}
                                                         className="text-red-500 hover:text-red-600 hover:bg-red-50 rounded-full h-10 px-4 bg-muted/20"
                                                     >
                                                         <Trash2 className="w-4 h-4 mr-2" /> Delete Event
@@ -1568,7 +1680,7 @@ const AdminDashboard = () => {
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 justify-items-center">
                                     {users.filter(u => u.role === 'user').map(user => (
-                                        <StudentIdCard key={user._id} user={user} />
+                                        <StudentIdCard key={user.id} user={user} />
                                     ))}
                                     {users.filter(u => u.role === 'user').length === 0 && (
                                         <div className="col-span-full py-20 text-center border-2 border-dashed border-border/50 rounded-3xl w-full">
@@ -1770,7 +1882,11 @@ const AdminDashboard = () => {
                                         </div>
                                         <div className="p-3 bg-muted/30 rounded-lg">
                                             <p className="text-xs text-muted-foreground uppercase mb-1">DOB</p>
-                                            <p className="font-medium">{selectedUser.dob ? new Date(selectedUser.dob).toLocaleDateString() : 'N/A'}</p>
+                                            <p className="font-medium">{(() => {
+                                                if (!selectedUser.dob) return 'N/A';
+                                                const d = new Date(selectedUser.dob);
+                                                return isNaN(d.getTime()) ? 'Invalid Date' : d.toLocaleDateString();
+                                            })()}</p>
                                         </div>
                                         <div className="p-3 bg-muted/30 rounded-lg">
                                             <p className="text-xs text-muted-foreground uppercase mb-1">Aadhar</p>
@@ -1797,8 +1913,8 @@ const AdminDashboard = () => {
                                     </div>
 
                                     <div className="border-t border-border/50 pt-4">
-                                        <h4 className="font-bold text-sm mb-4 uppercase tracking-wider text-muted-foreground">Attendance History</h4>
-                                        <AttendanceCalendar userId={selectedUser._id} token={user?.token || ''} className="border-none shadow-none bg-muted/20" />
+                                        <h4 className="font-bold text-sm mb-3 uppercase tracking-wider text-muted-foreground">Attendance History</h4>
+                                        <AttendanceCalendar userId={selectedUser.id} token={user?.token || ''} className="border-none shadow-none bg-muted/20" />
                                     </div>
 
 
@@ -1809,7 +1925,7 @@ const AdminDashboard = () => {
                                             <div><span className="text-muted-foreground">Father:</span> {selectedUser.fatherName}</div>
                                             <div><span className="text-muted-foreground">Phone:</span> {selectedUser.fatherPhone}</div>
                                             <div><span className="text-muted-foreground">Mother:</span> {selectedUser.motherName}</div>
-                                            <div><span className="text-muted-foreground">Phone:</span> {selectedUser.motherPhone}</div>
+                                            <div><span className="text-muted-foreground">Blood Group:</span> {selectedUser.bloodGroup || 'N/A'}</div>
                                         </div>
                                     </div>
 
@@ -1848,7 +1964,7 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
                                             <Button
-                                                onClick={() => handleApproveUser(selectedUser._id)}
+                                                onClick={() => handleApproveUser(selectedUser.id)}
                                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-6 rounded-xl shadow-lg transition-all"
                                                 disabled={isLoading}
                                             >
@@ -1861,7 +1977,7 @@ const AdminDashboard = () => {
                                         </div>
                                     )}
 
-                                    {selectedUser.paymentHistory && selectedUser.paymentHistory.length > 0 && (
+                                    {selectedUser.paymentHistory && Array.isArray(selectedUser.paymentHistory) && selectedUser.paymentHistory.length > 0 && (
                                         <div className="border-t border-border/50 pt-6 mt-6">
                                             <button
                                                 onClick={() => setShowPaymentHistory(!showPaymentHistory)}
@@ -1870,24 +1986,37 @@ const AdminDashboard = () => {
                                                 <h4 className="font-bold text-sm uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                                                     <FileText className="w-4 h-4" />
                                                     Payment History
-                                                    <span className="bg-muted px-2 py-0.5 rounded-full text-[10px] ml-1">{selectedUser.paymentHistory.length}</span>
+                                                    <span className="bg-muted px-2 py-0.5 rounded-full text-[10px] ml-1">
+                                                        {selectedUser.paymentHistory.filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime())).length}
+                                                    </span>
                                                 </h4>
                                                 {showPaymentHistory ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                                             </button>
 
                                             {showPaymentHistory && (
                                                 <div className="space-y-3 max-h-[250px] overflow-y-auto pr-2 mt-4 custom-scrollbar animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    {[...selectedUser.paymentHistory].reverse().map((payment: any, idx: number) => (
-                                                        <div key={idx} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/30">
-                                                            <div>
-                                                                <p className="font-bold text-sm text-foreground">₹{payment.amount}</p>
-                                                                <p className="text-[10px] text-muted-foreground">{new Date(payment.date).toLocaleDateString()} {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                                    {[...selectedUser.paymentHistory]
+                                                        .filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime()))
+                                                        .reverse()
+                                                        .map((payment: any, idx: number) => (
+                                                            <div key={idx} className="flex justify-between items-center bg-muted/30 p-3 rounded-lg border border-border/30">
+                                                                <div>
+                                                                    <p className="font-bold text-sm text-foreground">₹{payment.amount}</p>
+                                                                    <p className="text-[10px] text-muted-foreground">
+                                                                        {(() => {
+                                                                            const d = new Date(payment.date);
+                                                                            return isNaN(d.getTime()) ? 'Invalid Date' : `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                                                                        })()}
+                                                                    </p>
+                                                                </div>
+                                                                <div className="text-right">
+                                                                    <p className="text-[11px] font-medium text-primary bg-primary/5 px-2 py-0.5 rounded-full">{payment.remarks || 'Payment recorded'}</p>
+                                                                </div>
                                                             </div>
-                                                            <div className="text-right">
-                                                                <p className="text-[11px] font-medium text-primary bg-primary/5 px-2 py-0.5 rounded-full">{payment.remarks || 'Payment recorded'}</p>
-                                                            </div>
-                                                        </div>
-                                                    ))}
+                                                        ))}
+                                                    {[...selectedUser.paymentHistory].filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime())).length === 0 && (
+                                                        <p className="text-xs text-muted-foreground text-center py-4">No valid payment records found.</p>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -1898,7 +2027,13 @@ const AdminDashboard = () => {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium">Full Name <span className="text-red-500">*</span></label>
-                                            <Input value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} className="h-9" />
+                                            <Input
+                                                value={editFormData.name}
+                                                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                                                className="h-9"
+                                                pattern="[a-zA-Z\s]+"
+                                                title="Name should only contain alphabets and spaces"
+                                            />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium">Email <span className="text-red-500">*</span></label>
@@ -1919,6 +2054,40 @@ const AdminDashboard = () => {
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium">DOB</label>
                                             <Input type="date" value={editFormData.dob} onChange={(e) => setEditFormData({ ...editFormData, dob: e.target.value })} className="h-9" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium">Aadhar No.</label>
+                                            <Input
+                                                value={editFormData.aadharNo}
+                                                onChange={(e) => setEditFormData({ ...editFormData, aadharNo: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                                                className="h-9"
+                                                minLength={12}
+                                                maxLength={12}
+                                                pattern="[0-9]{12}"
+                                                title="Aadhar number must be 12 digits"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium">Father's Name</label>
+                                            <Input
+                                                value={editFormData.fatherName}
+                                                onChange={(e) => setEditFormData({ ...editFormData, fatherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                                                className="h-9"
+                                                pattern="[a-zA-Z\s]+"
+                                                title="Name should only contain alphabets and spaces"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium">Father's Phone</label>
+                                            <Input value={editFormData.fatherPhone} onChange={(e) => setEditFormData({ ...editFormData, fatherPhone: e.target.value })} className="h-9" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium">Blood Group</label>
+                                            <Input value={editFormData.bloodGroup} onChange={(e) => setEditFormData({ ...editFormData, bloodGroup: e.target.value })} className="h-9" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-medium">University</label>
+                                            <Input value={editFormData.university} onChange={(e) => setEditFormData({ ...editFormData, university: e.target.value })} className="h-9" />
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-xs font-medium">Total Amount</label>

@@ -64,9 +64,14 @@ const Contact = () => {
                                 </div>
 
                                 <div className="space-y-6">
-                                    <div className="flex items-start gap-4 p-4 rounded-lg bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="p-3 rounded-full bg-primary/10 text-primary shrink-0">
-                                            <MapPin className="w-6 h-6" />
+                                    <a
+                                        href="https://maps.app.goo.gl/AHyXzA4pm97EhK8C7"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="flex items-start gap-4 p-4 rounded-lg bg-card border border-border/50 shadow-sm hover:shadow-md transition-all hover:bg-muted/50 group/map"
+                                    >
+                                        <div className="p-3 rounded-full bg-primary/10 text-primary shrink-0 group-hover/map:bg-primary group-hover/map:text-white transition-colors">
+                                            <MapPin className="w-6 h-6 group-hover/map:animate-bounce" />
                                         </div>
                                         <div>
                                             <h3 className="font-semibold mb-1">Our Location</h3>
@@ -74,7 +79,7 @@ const Contact = () => {
                                                 Lakhey, Hazaribagh, Jharkhand 825301
                                             </p>
                                         </div>
-                                    </div>
+                                    </a>
 
                                     <div className="flex items-start gap-4 p-4 rounded-lg bg-card border border-border/50 shadow-sm hover:shadow-md transition-shadow">
                                         <div className="p-3 rounded-full bg-primary/10 text-primary shrink-0">

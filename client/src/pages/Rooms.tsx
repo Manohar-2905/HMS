@@ -14,6 +14,20 @@ export default function Rooms() {
     const [loading, setLoading] = useState(true);
     const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
 
+    const getRoomImages = (images: any): string[] => {
+        if (!images) return [];
+        if (Array.isArray(images)) return images;
+        if (typeof images === 'string') {
+            try {
+                const parsed = JSON.parse(images);
+                return Array.isArray(parsed) ? parsed : [images];
+            } catch (e) {
+                return [images];
+            }
+        }
+        return [];
+    };
+
     useEffect(() => {
         const fetchRooms = async () => {
             try {
@@ -64,7 +78,7 @@ export default function Rooms() {
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                                 {rooms.map((room: any, index: number) => (
                                     <div
-                                        key={room._id}
+                                        key={room.id}
                                         className="group rounded-2xl overflow-hidden bg-gradient-to-br from-card to-secondary/30 border border-border/50 shadow-lg hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer"
                                         style={{ animationDelay: `${index * 100}ms` }}
                                         onClick={() => setSelectedRoom(room)}
@@ -72,7 +86,7 @@ export default function Rooms() {
                                         {/* Image */}
                                         <div className="relative h-64 overflow-hidden shrink-0">
                                             <img
-                                                src={room.images?.[0] || `https://placehold.co/600x400?text=${room.roomName}`}
+                                                src={getRoomImages(room.images)?.[0] || `https://placehold.co/600x400?text=${room.roomName}`}
                                                 alt={room.roomName}
                                                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                                             />
@@ -140,7 +154,7 @@ export default function Rooms() {
                         {selectedRoom && (
                             <div className="space-y-4">
                                 <RoomImageGallery
-                                    images={selectedRoom.images || []}
+                                    images={getRoomImages(selectedRoom.images)}
                                 />
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-xl text-center">
                                     <div>

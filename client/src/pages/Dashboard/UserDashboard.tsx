@@ -200,7 +200,7 @@ const UserDashboard = () => {
             formData.append('photo', photoFile);
 
             setPhotoUploading(true);
-            const updatePromise = api.put(`/api/auth/users/${user?._id}`, formData, {
+            const updatePromise = api.put(`/api/auth/users/${user?.id}`, formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -312,15 +312,33 @@ const UserDashboard = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <div>
+                                        <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Full Name</label>
+                                        <p className="text-lg font-medium">{user?.name}</p>
+                                    </div>
+                                    <div>
                                         <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Email Address</label>
                                         <p className="text-lg font-medium">{user?.email}</p>
                                     </div>
                                     <div>
+                                        <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">University / College</label>
+                                        <p className="text-lg font-medium">{user?.university || 'Not Provided'}</p>
+                                    </div>
+                                    {user?.registrationNo && (
+                                        <div>
+                                            <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Registration No</label>
+                                            <p className="text-lg font-medium">{user.registrationNo}</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="space-y-4">
+                                    <div>
                                         <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Phone Number</label>
                                         <p className="text-lg font-medium">{user?.phone || 'Not Provided'}</p>
                                     </div>
-                                </div>
-                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Father's Name</label>
+                                        <p className="text-lg font-medium">{user?.fatherName || 'Not Provided'}</p>
+                                    </div>
                                     <div>
                                         <label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Address</label>
                                         <p className="text-lg font-medium">{user?.address || 'Not Provided'}</p>
@@ -367,51 +385,71 @@ const UserDashboard = () => {
                         </div>
 
                         {/* Payment History Card - Full Width below row 1 */}
-                        {user?.paymentHistory && user.paymentHistory.length > 0 && (
-                            <div className="lg:col-span-3 bg-card border border-border/50 rounded-2xl p-8 shadow-xl transition-all hover:shadow-2xl">
-                                <button
-                                    onClick={() => setShowPaymentHistory(!showPaymentHistory)}
-                                    className="w-full flex justify-between items-center group hover:bg-muted/50 p-2 rounded-lg transition-colors"
-                                >
-                                    <h3 className="text-xl font-bold flex items-center gap-3 text-primary">
-                                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
-                                            <FileText className="w-5 h-5" />
-                                        </div>
-                                        Payment History
-                                        <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs ml-1 border border-primary/20">
-                                            {user.paymentHistory.length}
-                                        </span>
-                                    </h3>
-                                    {showPaymentHistory ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
-                                </button>
+                        {(() => {
+                            let history = [];
+                            try {
+                                if (Array.isArray(user?.paymentHistory)) {
+                                    history = user.paymentHistory;
+                                } else if (typeof user?.paymentHistory === 'string') {
+                                    history = JSON.parse(user.paymentHistory);
+                                }
+                            } catch (e) {
+                                console.error("Failed to parse history", e);
+                            }
 
-                                {showPaymentHistory && (
-                                    <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                        {[...user.paymentHistory].reverse().map((payment: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between items-center bg-muted/30 p-4 rounded-xl border border-border/30 hover:border-primary/30 transition-colors group">
-                                                <div className="flex gap-4 items-center">
-                                                    <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-lg ring-4 ring-white shadow-sm border border-green-100">
-                                                        ₹
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-black text-xl text-foreground tracking-tight">₹{payment.amount}</p>
-                                                        <p className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
-                                                            <Calendar className="w-3 h-3" />
-                                                            {new Date(payment.date).toLocaleDateString()} at {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className="text-[10px] uppercase tracking-widest font-black text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
-                                                        {payment.remarks || 'Success'}
-                                                    </span>
-                                                </div>
+                            return Array.isArray(history) && (
+                                <div className="lg:col-span-3 bg-card border border-border/50 rounded-2xl p-8 shadow-xl transition-all hover:shadow-2xl">
+                                    <button
+                                        onClick={() => setShowPaymentHistory(!showPaymentHistory)}
+                                        className="w-full flex justify-between items-center group hover:bg-muted/50 p-2 rounded-lg transition-colors"
+                                    >
+                                        <h3 className="text-xl font-bold flex items-center gap-3 text-primary">
+                                            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+                                                <FileText className="w-5 h-5" />
                                             </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                                            Payment History
+                                            <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs ml-1 border border-primary/20">
+                                                {history.filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime())).length}
+                                            </span>
+                                        </h3>
+                                        {showPaymentHistory ? <ChevronUp className="w-5 h-5 text-primary" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}
+                                    </button>
+
+                                    {showPaymentHistory && (
+                                        <div className="mt-4 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            {history.filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime())).length > 0 ? (
+                                                [...history]
+                                                    .filter((p: any) => p && Number(p.amount) > 0 && p.date && !isNaN(new Date(p.date).getTime()))
+                                                    .reverse()
+                                                    .map((payment: any, idx: number) => (
+                                                        <div key={idx} className="flex justify-between items-center bg-muted/30 p-4 rounded-xl border border-border/30 hover:border-primary/30 transition-colors group">
+                                                            <div className="flex gap-4 items-center">
+                                                                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600 font-bold text-lg ring-4 ring-white shadow-sm border border-green-100">
+                                                                    ₹
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-black text-xl text-foreground tracking-tight">₹{payment.amount}</p>
+                                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 font-medium">
+                                                                        <Calendar className="w-3 h-3" />
+                                                                        {new Date(payment.date).toLocaleDateString()} at {new Date(payment.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="text-[10px] uppercase tracking-widest font-black text-primary bg-primary/5 px-3 py-1 rounded-full border border-primary/10">
+                                                                    {payment.remarks || 'Success'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                            ) : (
+                                                <p className="text-center text-muted-foreground text-sm italic py-4">No valid payment history available</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Study Resources Section */}
@@ -613,7 +651,7 @@ const UserDashboard = () => {
                         </div>
 
                         <div className="mt-8">
-                            {user && <AttendanceCalendar userId={user._id} token={user.token} className="border-none shadow-none bg-muted/20" />}
+                            {user && <AttendanceCalendar userId={user.id} token={user.token} className="border-none shadow-none bg-muted/20" />}
                         </div>
 
                     </div>

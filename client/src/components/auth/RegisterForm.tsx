@@ -23,13 +23,17 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
         fatherOccupation: '',
         fatherPhone: '',
         motherName: '',
-        motherPhone: '',
+        bloodGroup: '',
         aadharNo: '',
         university: '',
-        registrationNo: ''
+        registrationNo: '',
+        visitors: ['', '', '']
     });
     const [photo, setPhoto] = useState<File | null>(null);
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+    const [isOtpSent, setIsOtpSent] = useState(false);
+    const [otp, setOtp] = useState('');
 
     const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
@@ -48,6 +52,51 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
         setIsLoading(true);
 
         try {
+            if (!isOtpSent) {
+                const data = new FormData();
+                Object.keys(formData).forEach(key => {
+                    // @ts-ignore
+                    data.append(key, formData[key]);
+                });
+                if (photo) {
+                    data.append('photo', photo);
+                }
+
+                const registrationPromise = api.post('/api/auth/register-request', data);
+
+                toast.promise(registrationPromise, {
+                    loading: 'Sending verification code...',
+                    success: (res: any) => res.data.message || 'Verification code sent!',
+                    error: (err: any) => err.response?.data?.message || 'Failed to send OTP',
+                });
+
+                await registrationPromise;
+                setIsOtpSent(true);
+            } else {
+                const verificationPromise = api.post('/api/auth/verify-registration-otp', {
+                    email: formData.email,
+                    otp
+                });
+
+                toast.promise(verificationPromise, {
+                    loading: 'Verifying code...',
+                    success: (res: any) => res.data.message || 'Verified successfully!',
+                    error: (err: any) => err.response?.data?.message || 'Invalid or expired code',
+                });
+
+                await verificationPromise;
+                onSuccess();
+            }
+        } catch (error: any) {
+            console.error(error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleResendOtp = async () => {
+        setIsLoading(true);
+        try {
             const data = new FormData();
             Object.keys(formData).forEach(key => {
                 // @ts-ignore
@@ -57,22 +106,71 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                 data.append('photo', photo);
             }
 
-            const registrationPromise = api.post('/api/auth/register-request', data);
-
-            toast.promise(registrationPromise, {
-                loading: 'Submitting registration request...',
-                success: (res: any) => res.data.message || 'Request submitted successfully!',
-                error: (err: any) => err.response?.data?.message || 'Registration failed',
+            const resendPromise = api.post('/api/auth/register-request', data);
+            toast.promise(resendPromise, {
+                loading: 'Resending verification code...',
+                success: 'Code resent successfully!',
+                error: (err: any) => err.response?.data?.message || 'Failed to resend code',
             });
-
-            await registrationPromise;
-            onSuccess();
-        } catch (error: any) {
+            await resendPromise;
+        } catch (error) {
             console.error(error);
         } finally {
             setIsLoading(false);
         }
     };
+
+    if (isOtpSent) {
+        return (
+            <div className="space-y-6 animate-fade-in">
+                <div className="text-center space-y-2">
+                    <h3 className="text-xl font-bold font-display text-primary">Verify Email</h3>
+                    <p className="text-sm text-muted-foreground">
+                        We've sent a 4-digit verification code to <span className="font-bold text-foreground">{formData.email}</span>.
+                    </p>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex justify-between">
+                            Verification Code
+                            <button
+                                type="button"
+                                onClick={() => setIsOtpSent(false)}
+                                className="text-primary lowercase font-normal hover:underline"
+                            >
+                                Change Email
+                            </button>
+                        </label>
+                        <Input
+                            required
+                            placeholder="0000"
+                            className="text-center text-3xl tracking-[15px] h-16 font-mono font-bold"
+                            value={otp}
+                            onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                            maxLength={4}
+                        />
+                    </div>
+
+                    <Button type="submit" disabled={isLoading || otp.length < 4} className="w-full rounded-full shadow-lg h-12 text-lg font-display">
+                        {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : null}
+                        Verify & Complete
+                    </Button>
+
+                    <div className="text-center">
+                        <button
+                            type="button"
+                            onClick={handleResendOtp}
+                            disabled={isLoading}
+                            className="text-sm text-primary font-bold hover:underline disabled:opacity-50"
+                        >
+                            Resend Code
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
@@ -105,7 +203,9 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                             placeholder="Student Name"
                             className="pl-9"
                             value={formData.name}
-                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                            pattern="[a-zA-Z\s]+"
+                            title="Name should only contain alphabets and spaces"
                         />
                     </div>
                 </div>
@@ -176,10 +276,11 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date of Birth</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Date of Birth *</label>
                     <div className="relative">
                         <Calendar className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
+                            required
                             type="date"
                             className="pl-9"
                             value={formData.dob}
@@ -189,11 +290,16 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aadhar No.</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Aadhar No. *</label>
                     <Input
+                        required
                         placeholder="12-digit Aadhar"
                         value={formData.aadharNo}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, aadharNo: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, aadharNo: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                        minLength={12}
+                        maxLength={12}
+                        pattern="[0-9]{12}"
+                        title="Aadhar number must be 12 digits"
                     />
                 </div>
 
@@ -203,10 +309,11 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                 </div>
 
                 <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">University/College</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">University/College *</label>
                     <div className="relative">
                         <GraduationCap className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
+                            required
                             placeholder="Institution Name"
                             className="pl-9"
                             value={formData.university}
@@ -234,17 +341,21 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Father's Name</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Father's Name *</label>
                     <Input
+                        required
                         placeholder="Father's Full Name"
                         value={formData.fatherName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, fatherName: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, fatherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                        pattern="[a-zA-Z\s]+"
+                        title="Name should only contain alphabets and spaces"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Father's Phone</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Father's Phone *</label>
                     <Input
+                        required
                         placeholder="Father's Contact"
                         value={formData.fatherPhone}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, fatherPhone: val }); }}
@@ -261,23 +372,43 @@ export function RegisterForm({ onSuccess, onLoginClick }: RegisterFormProps) {
                     <Input
                         placeholder="Mother's Full Name"
                         value={formData.motherName}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, motherName: e.target.value })}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, motherName: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                        pattern="[a-zA-Z\s]+"
+                        title="Name should only contain alphabets and spaces"
                     />
                 </div>
 
                 <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Mother's Phone</label>
+                    <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Blood Group</label>
                     <Input
-                        placeholder="Mother's Contact"
-                        value={formData.motherPhone}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => { const val = e.target.value.replace(/\D/g, '').slice(0, 10); setFormData({ ...formData, motherPhone: val }); }}
-                        type="tel"
-                        minLength={10}
-                        maxLength={10}
-                        pattern="[0-9]{10}"
-                        title="Phone number must be exactly 10 digits"
+                        placeholder="O+, A+, etc."
+                        value={formData.bloodGroup}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, bloodGroup: e.target.value })}
                     />
                 </div>
+
+                <div className="md:col-span-2 border-t border-border pt-4 mt-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-[2px] text-primary mb-4">Visitor Details</h4>
+                </div>
+
+                {[0, 1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Visitor {i + 1} *</label>
+                        <Input
+                            required
+                            placeholder={`Visitor ${i + 1} Name`}
+                            value={formData.visitors[i]}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                const newVisitors = [...formData.visitors];
+                                newVisitors[i] = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                                setFormData({ ...formData, visitors: newVisitors });
+                            }}
+                            pattern="[a-zA-Z\s]+"
+                            title="Name should only contain alphabets and spaces"
+                        />
+                    </div>
+                ))}
+
             </div>
 
             <Button type="submit" disabled={isLoading} className="w-full rounded-full shadow-lg h-12 text-lg font-display">

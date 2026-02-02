@@ -48,7 +48,7 @@ export function EventsSection() {
       ) : (
         <div className="space-y-6">
           {events.map((event) => (
-            <div key={event._id} className="group relative bg-muted/20 rounded-2xl p-4 md:p-6 border border-border/30 hover:bg-muted/30 transition-all duration-300">
+            <div key={event.id} className="group relative bg-muted/20 rounded-2xl p-4 md:p-6 border border-border/30 hover:bg-muted/30 transition-all duration-300">
               <div className="flex flex-col md:flex-row gap-6">
                 {event.image && (
                   <div className="h-32 md:h-40 w-full md:w-56 rounded-xl overflow-hidden shadow-inner flex-shrink-0">
