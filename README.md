@@ -1,6 +1,13 @@
 # 🏥 Yashoda Bhawan - Modern Hostel Management System
 
-![Project Hero](./client/public/project_hero.png)
+<p align="center">
+  <img src="./client/public/logo.png" width="200" alt="Yashoda Bhawan Logo" />
+</p>
+
+### 🎥 Welcome to Yashoda Bhawan
+<p align="center">
+  <video src="./client/public/Welcome.mp4" width="100%" controls autoplay muted></video>
+</p>
 
 Yashoda Bhawan is a premium, full-stack hostel management application designed to streamline student registration, attendance tracking, room allocation, and administrative tasks. It provides a modern, responsive interface for both students and administrators.
 
